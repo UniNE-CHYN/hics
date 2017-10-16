@@ -1,0 +1,14 @@
+[Unit]
+Description=Hyperspectral Imaging Control System: Specim SWIR framegrabber
+After=hscc-capture.service redis-server.service
+
+[Service]
+User=fasnachtl
+Environment=PYTHONPATH=/home/fasnachtl/git/hics
+ExecStart=/usr/bin/python3 -m hics.hardware.specimswir.framegrabber
+KillMode=process
+KillSignal=SIGKILL
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

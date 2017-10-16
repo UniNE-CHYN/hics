@@ -89,7 +89,7 @@ class FrameGrabber(threading.Thread):
         self._continue = False
 
 if __name__ == '__main__':
-    import redis, argparse
+    import redis, argparse, time, signal
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", help="Redis URL")
     parser.add_argument("--port", help="TCP/IP port")
@@ -101,3 +101,12 @@ if __name__ == '__main__':
         
     framegrabber = FrameGrabber(r, args.port)
     framegrabber.run()
+    
+    def stop_thread(*a):
+        framegrabber.stop()
+        
+    signal.signal(signal.SIGINT, stop_thread)
+    signal.signal(signal.SIGTERM, stop_thread)
+
+    while True:
+        time.sleep(1)
