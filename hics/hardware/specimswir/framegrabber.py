@@ -144,12 +144,12 @@ def main():
         redis_client = redis.Redis()
 
     framegrabber = FrameGrabber(redis_client, args.port)
+    
+    def stop_thread(*_a):
+        framegrabber.stop()
 
     signal.signal(signal.SIGINT, stop_thread)
     signal.signal(signal.SIGTERM, stop_thread)
-
-    def stop_thread(*_a):
-        framegrabber.stop()
 
     framegrabber.run()
     while framegrabber.running:
