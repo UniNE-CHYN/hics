@@ -53,9 +53,9 @@ class CameraInterface:
         return self._serial.fileno()
 
 class Camera:
-    _debug = True
-    
-    def __init__(self, port):
+    def __init__(self, port, debug=False):
+        self._debug = debug
+        
         super().__init__()
         self._interface = CameraInterface(port)
         self._check_communication()
@@ -288,9 +288,10 @@ class CameraRedisDaemon(Camera):
 
 def add_arguments(parser):
     parser.add_argument("--port", help="Camera serial port")
+    parser.add_argument("--debug", help="Debug", action="store_true")
     
 def launch(redis_client, args):
-    return CameraRedisDaemon(redis_client, args.port)
+    return CameraRedisDaemon(redis_client, args.port, args.debug)
 
 def main():
     from hics.utils.daemonize import stdmain
