@@ -286,23 +286,15 @@ class CameraRedisDaemon(Camera):
     def notify(self, prop):
         self._redis_link.notify(prop)
 
-if __name__ == '__main__':
-    import redis, argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--redis", help="Redis URL")
+def add_arguments(parser):
     parser.add_argument("--port", help="Camera serial port")
-    args = parser.parse_args()
-    if args.redis is not None:
-        r = redis.from_url(args.redis)
-    else:
-        r = redis.Redis()
     
-    camera = CameraRedisDaemon(r, args.port)
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        camera.stop()
-    
+def launch(redis_client, args):
+    return CameraRedisDaemon(r, args.port)
+
+def main():
+    from hics.utils.daemonize import stdmain
+    return stdmain(cb_launch=launch, cb_add_arguments_to_parser=add_arguments)
+
+if __name__ == '__main__':
+    main()
