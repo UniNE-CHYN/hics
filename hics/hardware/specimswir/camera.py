@@ -217,10 +217,10 @@ class Camera:
             self._send_message_assert_ok([b'SEX', b'0'])
         self._external_trigger = new_external_trigger
         
-    def _call_shutter_helper(self, args):
+    def _call_shutter_helper(self, arguments):
         import os, subprocess
         exe_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'helpers', 'specimswir', 'shutter', 'shutter')
-        subprocess.call([exe_path] + args)
+        subprocess.call([exe_path] + arguments)
         
     @property
     def shutter_open(self):
@@ -287,7 +287,7 @@ class CameraRedisDaemon(Camera):
         self._redis_link.notify(prop)
 
 if __name__ == '__main__':
-    import redis, argparse, redisrpc
+    import redis, argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", help="Redis URL")
     parser.add_argument("--port", help="Camera serial port")
