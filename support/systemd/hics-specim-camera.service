@@ -1,0 +1,13 @@
+[Unit]
+Description=Hyperspectral Imaging Control System: Specim SWIR camera control
+After=redis-server.service
+
+[Service]
+User=fasnachtl
+Environment=PYTHONPATH=/home/fasnachtl/git/hics
+ExecStart=/usr/bin/python3 -m hics.hardware.specimswir.camera
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
