@@ -129,31 +129,17 @@ class FrameGrabber(threading.Thread):
     def running(self):
         return self._continue
     
-def main():
-    """main function when run as a standalone program"""
-    import argparse
-    import time
-    import signal
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--redis", help="Redis URL")
+def add_arguments(parser):
     parser.add_argument("--port", help="TCP/IP port")
-    args = parser.parse_args()
-    if args.redis is not None:
-        redis_client = redis.from_url(args.redis)
-    else:
-        redis_client = redis.Redis()
-
-    framegrabber = FrameGrabber(redis_client, args.port)
     
-    def stop_thread(*_a):
-        framegrabber.stop()
-
-    signal.signal(signal.SIGINT, stop_thread)
-    signal.signal(signal.SIGTERM, stop_thread)
-
+def launch(redis_client, args):
+    framegrabber = FrameGrabber(redis_client, args.port)
     framegrabber.run()
-    while framegrabber.running:
-        time.sleep(1)    
+    return framegrabber
+
+def main():
+    from hics.utils.daemonize import stdmain
+    return stdmain(cb_launch=launch, cb_add_arguments_to_parser=add_arguments)
 
 if __name__ == '__main__':
     main()
