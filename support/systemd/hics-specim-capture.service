@@ -1,0 +1,14 @@
+[Unit]
+Description = Hyperspectral Imaging Control System: Specim SWIR start capture computer via IPMI
+After=iscsitarget.service isc-dhcp-server.service 
+
+[Service]
+ExecStart=/bin/bash -c 'until /usr/sbin/ipmipower -h 192.168.1.192 -u ADMIN -p ADMIN --on --wait-until-on; do sleep 1; done'
+ExecStop=/bin/bash -c 'until /usr/sbin/ipmipower -h 192.168.1.192 -u ADMIN -p ADMIN --off --wait-until-off; do sleep 1; done'
+
+Type=oneshot
+TimeoutSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

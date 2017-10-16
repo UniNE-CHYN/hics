@@ -1,6 +1,6 @@
 [Unit]
 Description=Hyperspectral Imaging Control System: Specim SWIR framegrabber
-After=hscc-capture.service redis-server.service
+After=hics-specim-capture.service redis-server.service
 
 [Service]
 User=fasnachtl
