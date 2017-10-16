@@ -139,11 +139,11 @@ def main():
     parser.add_argument("--port", help="TCP/IP port")
     args = parser.parse_args()
     if args.redis is not None:
-        redis = redis.from_url(args.redis)
+        redis_client = redis.from_url(args.redis)
     else:
-        redis = redis.Redis()
+        redis_client = redis.Redis()
 
-    framegrabber = FrameGrabber(redis, args.port)
+    framegrabber = FrameGrabber(redis_client, args.port)
 
     signal.signal(signal.SIGINT, stop_thread)
     signal.signal(signal.SIGTERM, stop_thread)
