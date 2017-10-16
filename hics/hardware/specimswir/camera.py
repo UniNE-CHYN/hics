@@ -290,7 +290,7 @@ def add_arguments(parser):
     parser.add_argument("--port", help="Camera serial port")
     
 def launch(redis_client, args):
-    return CameraRedisDaemon(r, args.port)
+    return CameraRedisDaemon(redis_client, args.port)
 
 def main():
     from hics.utils.daemonize import stdmain
