@@ -1,5 +1,10 @@
+import argparse
+import time
+
+import redis
+
 def stdmain(cb_launch, cb_add_arguments_to_parser=None):
-    import redis, argparse, time
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", help="Redis URL")
     if cb_add_arguments_to_parser is not None:
