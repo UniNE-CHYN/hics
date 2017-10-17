@@ -138,6 +138,16 @@ class Camera:
             pass
         
     @property
+    def max_pixel_value(self):
+        """Maximum pixel value"""
+        return 16383
+    
+    @property
+    def shutter_latency(self):
+        """Latency in seconds for the shutter (i.e. the change has been made at redis-time +- shutter_latency"""
+        return 1.
+        
+    @property
     def nuc(self):
         return self._nuc
     
