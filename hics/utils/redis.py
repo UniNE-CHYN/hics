@@ -32,7 +32,7 @@ class RedisLink(threading.Thread):
         for attr_name in dir(obj.__class__):
             attr_value = getattr(obj.__class__, attr_name)
             if type(attr_value) == property and not attr_name.startswith('_'):
-                if attr_value.fset is not None:
+                if attr_value.fset is not None or True:
                     #This is a real property (we can set it), so return it
                     self._redis_properties.append(attr_name)
                     
