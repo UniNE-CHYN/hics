@@ -11,3 +11,6 @@ proj.directory-list = [{'dirloc': loc('.'),
                         'recursive': True,
                         'watch_for_changes': True}]
 proj.file-type = 'shared'
+proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
+        (u'--redis redis://130.125.10.26',
+         ''))}
