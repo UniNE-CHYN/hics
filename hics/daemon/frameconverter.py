@@ -72,8 +72,6 @@ class FrameConverter(threading.Thread):
                     #Remove old dark frames
                     while len(self._dark_frames) > 0 and self._dark_frames[0][0] < time.time() - self._shutter_latency:
                         self._dark_frames.pop(0)
-                        
-                    print(len(self._dark_frames))
                 
                 if len(self._dark_frames) > 0:
                     #Use the first dark frame (the others may be not real dark frames, since they are more recent)
