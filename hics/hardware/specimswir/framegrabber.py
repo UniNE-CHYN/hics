@@ -67,7 +67,7 @@ class FrameGrabber(threading.Thread):
     def run(self):
         """Run the thread"""
         self._redis.set(
-            'hscc:framegrabber:wavelengths',
+            'hics:framegrabber:wavelengths',
             ','.join('{0:0.02f}'.format(x) for x in self._wavelengths)
         )
 
@@ -114,12 +114,12 @@ class FrameGrabber(threading.Thread):
                     matrix = numpy.flipud(
                         numpy.rollaxis(matrix.reshape((1, 256, 320)), 2, 0))[:, :, ::-1]
                     self._redis.publish(
-                        'hscc:framegrabber:frame_raw', pickle.dumps(matrix))
+                        'hics:framegrabber:frame_raw', pickle.dumps(matrix))
 
                 except Exception as exc:
                     print(exc)
 
-        self._redis.delete('hscc:framegrabber:wavelengths')
+        self._redis.delete('hics:framegrabber:wavelengths')
 
     def stop(self):
         """Stop the thread"""

@@ -285,7 +285,7 @@ class CameraRedisDaemon(Camera):
         Camera.__init__(self, port, debug)
         
         self._redis = redis_conn
-        self._redis_link = RedisLink(self._redis, 'hscc:camera', self)
+        self._redis_link = RedisLink(self._redis, 'hics:camera', self)
         
     def __del__(self):
         self.stop()

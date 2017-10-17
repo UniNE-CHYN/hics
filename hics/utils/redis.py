@@ -202,3 +202,68 @@ class RedisNotifier(threading.Thread):
                     new_value = old_value
                     
         self._redis.delete(self._channel_name)
+
+class RedisLock(threading.Thread):
+    _loop_time = 1
+    #Needs to be an integer!
+    _lock_lifetime = 10
+    
+    def __init__(self, redis_client, lock_name, lock_value, *a, **kw):
+        threading.Thread.__init__(self, *a, **kw)
+        
+        self._instance_lock = threading.Lock()
+        
+        self._redis_client = redis_client
+        assert isinstance(self._redis_client, redis.client.Redis)
+        self._lock_name = lock_name
+        self._lock_value = lock_value
+        self._lock_acquired = False
+        self._continue = True
+        self.start()
+        
+    def run(self):
+        t = time.time()
+        while self._continue:
+            with self._instance_lock:
+                if self._lock_acquired:
+                    if not self._redis_client.expire(self._lock_name, self._lock_lifetime):
+                        #assert False, "Lock is lost!!!"
+                        print("Lock is lost!!!")
+            time.sleep(max(0, t + self._loop_time - time.time()))
+            t = time.time()
+    
+    def stop(self):
+        if self.lock_acquired:
+            self.release()
+        self._continue = False
+        
+    @property
+    def lock_acquired(self):
+        return self._lock_acquired
+        
+    def acquire(self, blocking = True):
+        """Block acquire the lock"""
+        with self._instance_lock:
+            #Don't lock twice!
+            assert not self._lock_acquired
+            
+            t = time.time()
+            while not self._redis_client.set(self._lock_name, self._lock_value, ex=self._lock_lifetime, nx = True):
+                #If we don't block, then we failed to get the lock
+                if not blocking:
+                    return False
+                #Otherwise, sleep at most loop_time, and retry
+                time.sleep(max(0, t + self._loop_time - time.time()))
+                t = time.time()
+                
+            self._lock_acquired = True
+            self._redis_client.publish(self._lock_name, self._lock_value)
+            return True
+        
+    def release(self):
+        with self._instance_lock:
+            assert self._lock_acquired
+            self._lock_acquired = False
+            self._redis_client.delete(self._lock_name)
+            self._redis_client.publish(self._lock_name, b'')
+

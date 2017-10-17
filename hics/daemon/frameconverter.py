@@ -16,9 +16,9 @@ class FrameConverter(threading.Thread):
         self._dark_frames = []
         
     def _reread_variables(self):
-        shutter_open = self._redis_client.get('hscc:camera:shutter_open')
-        shutter_latency = self._redis_client.get('hscc:camera:shutter_latency')
-        max_pixel_value = self._redis_client.get('hscc:camera:max_pixel_value')
+        shutter_open = self._redis_client.get('hics:camera:shutter_open')
+        shutter_latency = self._redis_client.get('hics:camera:shutter_latency')
+        max_pixel_value = self._redis_client.get('hics:camera:max_pixel_value')
         
         if shutter_open is None or shutter_latency is None or max_pixel_value is None:
             return False
@@ -41,9 +41,9 @@ class FrameConverter(threading.Thread):
         
     def run(self):
         _pubsub = self._redis_client.pubsub()
-        _pubsub.subscribe('hscc:framegrabber:frame_raw')
-        _pubsub.subscribe('hscc:camera')
-        _pubsub.subscribe('hscc:frameconverter')
+        _pubsub.subscribe('hics:framegrabber:frame_raw')
+        _pubsub.subscribe('hics:camera')
+        _pubsub.subscribe('hics:frameconverter')
         
         #Wait until we have valid variables...
         while not self._reread_variables():
@@ -63,7 +63,7 @@ class FrameConverter(threading.Thread):
                 channel = channel.decode('ascii')
                 
             #Is this a frame?
-            if channel == 'hscc:framegrabber:frame_raw':
+            if channel == 'hics:framegrabber:frame_raw':
                 #Load data
                 frame = numpy.require(pickle.loads(item['data']), dtype = numpy.float)
                 #If shutter is closed and we have enough delay
@@ -81,8 +81,8 @@ class FrameConverter(threading.Thread):
                 
                 frame_corrected_clipped = numpy.clip(frame_corrected / self._max_pixel_value, 0, 1)
                 
-                self._redis_client.publish('hscc:framegrabber:frame', pickle.dumps(frame_corrected_clipped))
-            elif channel == 'hscc:camera':
+                self._redis_client.publish('hics:framegrabber:frame', pickle.dumps(frame_corrected_clipped))
+            elif channel == 'hics:camera':
                 self._reread_variables()
         
 def launch(redis_client, args):

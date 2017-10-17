@@ -124,9 +124,9 @@ class ScannerRedisDaemon(Scanner):
         Scanner.__init__(self, port)
         
         self._redis = redis_conn
-        self._redis_notifier_state = RedisNotifier(self._redis, 'hscc:scanner:state', (self, '_redis_scanner_state'))
+        self._redis_notifier_state = RedisNotifier(self._redis, 'hics:scanner:state', (self, '_redis_scanner_state'))
         self._redis_notifier_state.notification_interval = 0.1
-        self._redis_link = RedisLink(self._redis, 'hscc:scanner', self)
+        self._redis_link = RedisLink(self._redis, 'hics:scanner', self)
         
     def _redis_scanner_state(self):
         moving, position = self.moving, self.position
