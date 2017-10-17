@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>466</width>
+    <height>528</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Hyper Spectral Camera Controller</string>
+  </property>
+  <property name="windowOpacity">
+   <double>1.000000000000000</double>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QMdiArea" name="mdiArea">
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>466</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_File">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionExportData"/>
+    <addaction name="separator"/>
+    <addaction name="actionSaveState"/>
+    <addaction name="actionLoadState"/>
+    <addaction name="separator"/>
+    <addaction name="actionSettings"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menu_Window">
+    <property name="title">
+     <string>&amp;Window</string>
+    </property>
+    <addaction name="actionCameraControlShow"/>
+    <addaction name="actionScannerControlShow"/>
+    <addaction name="actionFocusControlShow"/>
+    <addaction name="separator"/>
+    <addaction name="actionCameraOutputShow"/>
+    <addaction name="separator"/>
+    <addaction name="actionMagnitudeWaterfallShow"/>
+   </widget>
+   <widget class="QMenu" name="menu_Advanced">
+    <property name="title">
+     <string>&amp;Advanced</string>
+    </property>
+    <addaction name="actionLocked"/>
+   </widget>
+   <widget class="QMenu" name="menuPlugins">
+    <property name="title">
+     <string>&amp;Plugins</string>
+    </property>
+   </widget>
+   <addaction name="menu_File"/>
+   <addaction name="menuPlugins"/>
+   <addaction name="menu_Window"/>
+   <addaction name="menu_Advanced"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionCameraOutputShow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Camera live output</string>
+   </property>
+  </action>
+  <action name="actionMagnitudeWaterfallShow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Magnitude waterfall</string>
+   </property>
+  </action>
+  <action name="actionNew_magnitude_view">
+   <property name="text">
+    <string>New magnitude view</string>
+   </property>
+  </action>
+  <action name="actionFocusControlShow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Focus control</string>
+   </property>
+  </action>
+  <action name="actionCameraControlShow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Camera control</string>
+   </property>
+  </action>
+  <action name="actionScannerControlShow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Scanner control</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>&amp;Quit</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="text">
+    <string>&amp;Settings...</string>
+   </property>
+  </action>
+  <action name="actionLocked">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Locked</string>
+   </property>
+  </action>
+  <action name="action_Unlock">
+   <property name="text">
+    <string>&amp;Unlock</string>
+   </property>
+  </action>
+  <action name="actionSaveState">
+   <property name="text">
+    <string>S&amp;ave state...</string>
+   </property>
+  </action>
+  <action name="actionLoadState">
+   <property name="text">
+    <string>L&amp;oad state...</string>
+   </property>
+  </action>
+  <action name="actionExportData">
+   <property name="text">
+    <string>&amp;Export data...</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
