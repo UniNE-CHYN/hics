@@ -18,7 +18,7 @@ class FrameConverter(threading.Thread):
     def _reread_variables(self):
         shutter_open = self._redis_client.get('hics:camera:shutter_open')
         shutter_latency = self._redis_client.get('hics:camera:shutter_latency')
-        max_pixel_value = self._redis_client.get('hics:camera:max_pixel_value')
+        max_pixel_value = self._redis_client.get('hics:framegrabber:max_pixel_value')
         
         if shutter_open is None or shutter_latency is None or max_pixel_value is None:
             return False

@@ -70,6 +70,11 @@ class FrameGrabber(threading.Thread):
             'hics:framegrabber:wavelengths',
             ','.join('{0:0.02f}'.format(x) for x in self._wavelengths)
         )
+        
+        self._redis.set(
+            'hics:framegrabber:max_pixel_value',
+            16383
+        )        
 
         frame_header = struct.Struct('<L')
 

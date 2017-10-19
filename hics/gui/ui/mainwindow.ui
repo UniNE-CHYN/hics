@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Hyper Spectral Camera Controller</string>
+   <string>Hyperspectral Imaging Control System</string>
   </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>

@@ -136,11 +136,6 @@ class Camera:
         self._interface.flush()
         while self._send_message_assert_ok([b'CCM']) is None:
             pass
-        
-    @property
-    def max_pixel_value(self):
-        """Maximum pixel value"""
-        return 16383
     
     @property
     def shutter_latency(self):

@@ -110,7 +110,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(_translate("MainWindow", "Hyper Spectral Camera Controller", None))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Hyperspectral Imaging Control System", None))
         self.menu_File.setTitle(_translate("MainWindow", "&File", None))
         self.menu_Window.setTitle(_translate("MainWindow", "&Window", None))
         self.menu_Advanced.setTitle(_translate("MainWindow", "&Advanced", None))

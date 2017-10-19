@@ -144,11 +144,11 @@ class ScannerRedisDaemon(Scanner):
         self._redis_notifier_state.stop()
         
     @property
-    def notify_every(self):
+    def notification_interval(self):
         return self._redis_notifier_state.notification_interval
     
-    @notify_every.setter
-    def notify_every(self, new_value):
+    @notification_interval.setter
+    def notification_interval(self, new_value):
         self._redis_notifier_state.notification_interval = float(new_value)
 
 
