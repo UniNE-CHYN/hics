@@ -210,6 +210,14 @@ class Camera:
         self._frame_rate = new_frame_rate
         
     @property
+    def frame_rate_min(self):
+        return 3
+    
+    @property
+    def frame_rate_max(self):
+        return 100
+        
+    @property
     def external_trigger(self):
         return self._external_trigger
     
