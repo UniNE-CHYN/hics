@@ -267,6 +267,13 @@ class Camera:
             self.frame_rate = new_frame_rate
             self.notify('frame_rate')
             
+    @property
+    def integration_time_min(self):
+        return 1
+    
+    @property
+    def integration_time_max(self):
+        return 20000
         
     def _to_bool(self, v):
         if type(v) == bytes:

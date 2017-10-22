@@ -69,6 +69,14 @@ class CameraWindow(QtGui.QWidget, Ui_Camera):
             self.sbFrameRate.setMinimum(int(frame_rate_min))
         if frame_rate_max is not None:
             self.sbFrameRate.setMaximum(int(frame_rate_max))
+            
+        integration_time_min = redis_client.get('hics:camera:integration_time_min')
+        integration_time_max = redis_client.get('hics:camera:integration_time_max')
+        
+        if integration_time_min is not None:
+            self.sbIntegrationTime.setMinimum(float(integration_time_min))
+        if integration_time_max is not None:
+            self.sbIntegrationTime.setMaximum(float(integration_time_max))
         
         self._valid_camera = integration_time is not None and frame_rate is not None and nuc is not None
         
