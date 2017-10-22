@@ -306,7 +306,7 @@ class BasePlugin:
         if current_position is not None:
             max_speed = max(min_speed, min(abs(position - current_position), max_speed))
             
-        self._redis_client.publish('hics:scanner:velocity_max', max_speed)
+        self._redis_client.publish('hics:scanner:velocity', max_speed)
         self._redis_client.publish('hics:scanner:move_absolute', position)
         
 class BaseWorkerPlugin(BasePlugin):
@@ -515,7 +515,7 @@ class BaseImperativePlugin(BasePlugin):
             max_speed = max(min_speed, min(abs(target_position - current_position), max_speed))
             
             if not moving:
-                self._redis_client.publish('hics:scanner:velocity_max', max_speed)
+                self._redis_client.publish('hics:scanner:velocity', max_speed)
                 self._redis_client.publish('hics:scanner:move_absolute', target_position)
             moving, current_position = self.get_position()
             print(moving, current_position, target_position, max_speed)

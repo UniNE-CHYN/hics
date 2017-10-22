@@ -128,7 +128,7 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
             return
         
         data = []
-        for k in ('hics:camera:frame_rate', 'hics:camera:integration_time', 'hics:camera:nuc', 'hics:scanner:range_from', 'hics:scanner:range_to', 'hics:scanner:velocity_max'):
+        for k in ('hics:camera:frame_rate', 'hics:camera:integration_time', 'hics:camera:nuc', 'hics:scanner:range_from', 'hics:scanner:range_to', 'hics:scanner:velocity'):
             data.append('{0} {1}'.format(k, self._redis_client.get(k).decode('ascii')))
         
         open(filename, 'w').write('\n'.join(data))

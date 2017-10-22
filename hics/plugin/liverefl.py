@@ -18,7 +18,7 @@ class LiveRefl(BaseImperativePlugin):
     plugin_output = ['livespectrum']  #livegraph:[number of seconds]
     plugin_output_captions = ['reflectance 60/240']
 
-    plugin_uses = ['hics:camera:integration_time', 'hics:camera:nuc', 'hics:camera:shutter_open', 'hics:scanner:velocity_max', '#position']
+    plugin_uses = ['hics:camera:nuc', 'hics:camera:shutter_open']
     plugin_listens = ['hics:framegrabber:frame_raw', 'hics:scanner:state']
     plugin_requires_lock = False
 

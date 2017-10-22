@@ -93,14 +93,14 @@ class Scanner:
         return moving
     
     @property
-    def velocity_max(self):
+    def velocity(self):
         """Get maximal velocity"""
         return int(self._interface.send_command(b'PR VM', True).decode('ascii'))
 
-    @velocity_max.setter
-    def velocity_max(self, new_velocity_max):
+    @velocity.setter
+    def velocity(self, new_velocity):
         """Set maximal velocity"""
-        self._interface.send_command('VM {0}'.format(int(new_velocity_max)).encode('ascii'))
+        self._interface.send_command('VM {0}'.format(int(new_velocity)).encode('ascii'))
         
     @property
     def range_from(self):

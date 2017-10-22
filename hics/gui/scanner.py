@@ -65,21 +65,21 @@ class ScannerWindow(QtGui.QWidget, Ui_Scanner):
     def _slot_speed_changed(self, value):
         redis_client = self.parent().window()._redis_client
         assert isinstance(redis_client, redis.client.Redis)
-        redis_client.publish('hics:scanner:velocity_max', value)
+        redis_client.publish('hics:scanner:velocity', value)
         
     def scanner_changed(self):
         redis_client = self.parent().window()._redis_client
         assert isinstance(redis_client, redis.client.Redis)
         
-        velocity_max = redis_client.get('hics:scanner:velocity_max')
+        velocity = redis_client.get('hics:scanner:velocity')
         range_from = redis_client.get('hics:scanner:range_from')
         range_to = redis_client.get('hics:scanner:range_to')
         state = redis_client.get('hics:scanner:state')
         
-        self._valid_scanner = velocity_max is not None and range_from is not None and range_to is not None and state is not None
+        self._valid_scanner = velocity is not None and range_from is not None and range_to is not None and state is not None
         
         if self._valid_scanner:
-            velocity_max = float(velocity_max)
+            velocity = float(velocity)
             range_from = int(range_from)
             range_to = int(range_to)
             moving, position = [int(x) for x in state.decode('ascii').split(':')]
@@ -111,7 +111,7 @@ class ScannerWindow(QtGui.QWidget, Ui_Scanner):
             
             if not self.sbSpeed.hasFocus():
                 self.sbSpeed.blockSignals(True)
-                self.sbSpeed.setValue(velocity_max)
+                self.sbSpeed.setValue(velocity)
                 self.sbSpeed.blockSignals(False)
             
         self.lock_status_changed(self.parent().window().locked)

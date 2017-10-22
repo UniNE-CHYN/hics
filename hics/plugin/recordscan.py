@@ -22,7 +22,7 @@ class RecordScan(BaseImperativePlugin):
     plugin_output = []
     plugin_output_captions = []
 
-    plugin_uses = ['hics:camera:integration_time', 'hics:camera:nuc', 'hics:camera:shutter_open', 'hics:scanner:velocity_max', '#position']
+    plugin_uses = ['hics:camera:integration_time', 'hics:camera:nuc', 'hics:camera:shutter_open', 'hics:scanner:velocity', '#position']
     plugin_listens = ['hics:framegrabber:frame_raw', 'hics:scanner:state']
     plugin_requires_lock = True
 
@@ -58,7 +58,7 @@ class RecordScan(BaseImperativePlugin):
             
         self._redis_client.publish('hics:camera:nuc', 0)
         
-        self._scan_velocity = int(self._redis_client.get('hics:scanner:velocity_max'))
+        self._scan_velocity = int(self._redis_client.get('hics:scanner:velocity'))
         self._range_from = int(self._redis_client.get('hics:scanner:range_from'))
         self._range_to = int(self._redis_client.get('hics:scanner:range_to'))
         
@@ -229,7 +229,7 @@ class RecordScan(BaseImperativePlugin):
                     self.move_to(self._range_from)
                     target_position = self._range_to
 
-                self._redis_client.publish('hics:scanner:velocity_max', self._scan_velocity)
+                self._redis_client.publish('hics:scanner:velocity', self._scan_velocity)
                 
                 self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
                                     dark_frame_count, dark_frame_count, capture_end_position = target_position,
