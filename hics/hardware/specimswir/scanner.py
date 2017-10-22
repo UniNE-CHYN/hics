@@ -68,8 +68,8 @@ class Scanner:
         #Flush garbage
         self._interface._flush()
         
-        self._range_from = 0
-        self._range_to = 4096000
+        self._range_from = self.range_min
+        self._range_to = self.range_max
         
     def move_absolute(self, new_position):
         """Move scanner to some absolute position"""
@@ -101,6 +101,22 @@ class Scanner:
     def velocity(self, new_velocity):
         """Set maximal velocity"""
         self._interface.send_command('VM {0}'.format(int(new_velocity)).encode('ascii'))
+        
+    @property
+    def velocity_max(self):
+        return 400000
+    
+    @property
+    def velocity_min(self):
+        return 1
+    
+    @property
+    def range_min(self):
+        return -4096000
+    
+    @property
+    def range_max(self):
+        return 4096000
         
     @property
     def range_from(self):

@@ -76,6 +76,25 @@ class ScannerWindow(QtGui.QWidget, Ui_Scanner):
         range_to = redis_client.get('hics:scanner:range_to')
         state = redis_client.get('hics:scanner:state')
         
+        range_min = redis_client.get('hics:scanner:range_min')
+        range_max = redis_client.get('hics:scanner:range_max')
+        velocity_min = redis_client.get('hics:scanner:velocity_min')
+        velocity_max = redis_client.get('hics:scanner:velocity_max')
+        
+        if range_min is not None:
+            self.sbFrom.setMinimum(int(range_min))
+            self.sbTo.setMinimum(int(range_min))
+            
+        if range_max is not None:
+            self.sbFrom.setMaximum(int(range_max))
+            self.sbTo.setMaximum(int(range_max))
+            
+        if velocity_min is not None:
+            self.sbSpeed.setMinimum(int(velocity_min))
+            
+        if velocity_max is not None:
+            self.sbSpeed.setMaximum(int(velocity_max))
+
         self._valid_scanner = velocity is not None and range_from is not None and range_to is not None and state is not None
         
         if self._valid_scanner:
