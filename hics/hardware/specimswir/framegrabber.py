@@ -72,9 +72,15 @@ class FrameGrabber(threading.Thread):
         )
         
         self._redis.set(
+            'hics:framegrabber:frameheight',
+            320
+        )        
+        
+        self._redis.set(
             'hics:framegrabber:max_pixel_value',
             16383
-        )        
+        )
+        
 
         frame_header = struct.Struct('<L')
 
@@ -125,6 +131,8 @@ class FrameGrabber(threading.Thread):
                     print(exc)
 
         self._redis.delete('hics:framegrabber:wavelengths')
+        self._redis.delete('hics:framegrabber:frameheight')
+        self._redis.delete('hics:framegrabber:max_pixel_value')
 
     def stop(self):
         """Stop the thread"""
