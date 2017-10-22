@@ -1,6 +1,7 @@
 from PyQt4 import QtGui, QtCore
 from .ui.scanner import Ui_Scanner
 import redis
+import numpy
 
 class ScannerWindow(QtGui.QWidget, Ui_Scanner):
     closed = QtCore.pyqtSignal()
@@ -132,6 +133,10 @@ class ScannerWindow(QtGui.QWidget, Ui_Scanner):
                 self.sbSpeed.blockSignals(True)
                 self.sbSpeed.setValue(velocity)
                 self.sbSpeed.blockSignals(False)
+                
+        step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        self.slPosition.setSingleStep(step_size)
+        self.slPosition.setPageStep(10*step_size)
             
         self.lock_status_changed(self.parent().window().locked)
 

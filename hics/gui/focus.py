@@ -1,6 +1,7 @@
 from PyQt4 import QtGui, QtCore
 from .ui.focus import Ui_Focus
 import redis
+import numpy
 
 class FocusWindow(QtGui.QWidget, Ui_Focus):
     closed = QtCore.pyqtSignal()
@@ -107,6 +108,10 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
                 self.slPosition.setValue(position)
                 self.slPosition.blockSignals(False)
                 self.lbPosition.setText(str(position))
+                
+        step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        self.slPosition.setSingleStep(step_size)
+        self.slPosition.setPageStep(10*step_size)
             
         self.lock_status_changed(self.parent().window().locked)
 
