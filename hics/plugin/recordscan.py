@@ -28,10 +28,10 @@ class RecordScan(BaseImperativePlugin):
 
     plugin_input_before = [
         'string:/data/scans',
-        'string:' + '500,1000,2000,4000,6000,8000,12000,16000,20000',
+        'string:' + '',  #'500,1000,2000,4000,6000,8000,12000,16000,20000',
         'string:' + '',  #'10000,0,-4000,-8000,-12000,-16000,-20000,-24000,-28000,-32000,-36000,-40000,-44000,-48000,-52000,-56000',
-        'integerspinbox:0:300:60',
         'integerspinbox:0:300:0',
+        'integerspinbox:0:300:5',
         'string:'
     ]
     plugin_input_before_captions = [
@@ -51,7 +51,7 @@ class RecordScan(BaseImperativePlugin):
         self._directory = self._input_before[0].decode('utf8').strip()
         self._dark_frame_time = int(self._input_before[3].decode('utf8').strip())
         self._white_frame_time = int(self._input_before[4].decode('utf8').strip())
-        self._integration_times = [float(x.strip()) for x in self._input_before[1].decode('utf8').split(',')]
+        self._integration_times = [float(x.strip()) for x in self._input_before[1].decode('utf8').split(',') if x != '']
         self._focus_positions = [int(x.strip()) for x in self._input_before[2].decode('utf8').split(',') if x != '']
         if not os.path.exists(self._directory):
             os.mkdir(self._directory)
@@ -199,16 +199,20 @@ class RecordScan(BaseImperativePlugin):
         
         data['wavelengths'] = [float(x) for x in self._redis_client.get('hics:framegrabber:wavelengths').decode('utf8').split(',')]
         
-        if self._white_frame_time > 0:
-            for scan_idx, integration_time in enumerate(self._integration_times):
-                self._redis_client.publish('hics:camera:integration_time', integration_time)
-                time.sleep(2)
-                #Capture 1 dark frame before and after
-                self._capture_frames(data, 'white-{:05d}'.format(scan_idx), frame_shape, 1, 1, data_frames_count= int(self._white_frame_time * frame_rate))
-        
         if len(self._focus_positions) == 0:
             self._focus_positions = [None]
             
+        if len(self._integration_times) == 0:
+            self._integration_times = [None]        
+        
+        if self._white_frame_time > 0:
+            for scan_idx, integration_time in enumerate(self._integration_times):
+                if integration_time is not None:
+                    self._redis_client.publish('hics:camera:integration_time', integration_time)
+                    time.sleep(2)
+                #Capture 1 dark frame before and after
+                self._capture_frames(data, 'white-{:05d}'.format(scan_idx), frame_shape, 1, 1, data_frames_count= int(self._white_frame_time * frame_rate))
+        
         scan_idx = 0
         for focus_position in self._focus_positions:
             if focus_position is not None:
@@ -217,7 +221,8 @@ class RecordScan(BaseImperativePlugin):
                 self._redis_client.publish("hics:focus:move_absolute", focus_position)
                 
             for integration_time in self._integration_times:
-                self._redis_client.publish('hics:camera:integration_time', integration_time)
+                if integration_time is not None:
+                    self._redis_client.publish('hics:camera:integration_time', integration_time)
                 
                 moving, current_position = self.get_position()
                 reversed_scan = numpy.abs(current_position - self._range_from) > numpy.abs(current_position - self._range_to)

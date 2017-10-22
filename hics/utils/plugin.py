@@ -242,7 +242,9 @@ class BasePlugin:
         for key in self.plugin_uses:
             if key.startswith('#'):
                 getattr(self, '_redis_restore_{0}'.format(key[1:]))(self._saved_data[key])
-            else:
+                
+        for key in self.plugin_uses:
+            if not key.startswith('#'):
                 self._redis_client.publish(key, self._saved_data[key])
             
         del self._saved_data
@@ -299,12 +301,19 @@ class BasePlugin:
         return int(position)
     
     def _redis_restore_position(self, position):
+        velocity = self._redis_client.get('hics:scanner:velocity')
         if position is not None:
             self.move_absolute(position)
+        self._redis_client.set('hics:scanner:velocity', velocity)
         
-    def move_absolute(self, position, min_speed = 10000, max_speed = 100000, current_position = None):
+    def move_absolute(self, position, min_speed = None, max_speed = None, current_position = None):
         if current_position is not None:
             max_speed = max(min_speed, min(abs(position - current_position), max_speed))
+            
+        if min_speed is None:
+            min_speed = int(self._redis_client.get('hics:scanner:velocity_min'))
+        if max_speed is None:
+            max_speed = int(self._redis_client.get('hics:scanner:velocity_max'))
             
         self._redis_client.publish('hics:scanner:velocity', max_speed)
         self._redis_client.publish('hics:scanner:move_absolute', position)
@@ -490,14 +499,14 @@ class BaseImperativePlugin(BasePlugin):
     
     def move_to(self, target_position, min_speed = None, max_speed = None):
         if min_speed is None:
-            min_speed = self._redis_client.get('hics:scanner:scanner_limit_slow')
+            min_speed = self._redis_client.get('hics:scanner:velocity_min')
             if min_speed is None:
                 min_speed = 10000
             else:
                 min_speed = int(min_speed)
                 
         if max_speed is None:
-            max_speed = self._redis_client.get('hics:scanner:scanner_limit_fast')
+            max_speed = self._redis_client.get('hics:scanner:velocity_max')
             if max_speed is None:
                 max_speed = 100000
             else:

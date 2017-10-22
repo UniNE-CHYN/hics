@@ -190,6 +190,7 @@ class SimulatorScanner:
         
     def move_absolute(self, new_position):
         self._simulator_target = int(new_position)
+        self._simulator_target_velocity = self.velocity
         
     def end(self):
         """End current move"""
@@ -255,9 +256,9 @@ class SimulatorScanner:
     
     def _update_state(self, dt):
         if self._simulator_target > self._simulator_position:
-            delta = min(dt*self.velocity, self._simulator_target-self._simulator_position)
+            delta = min(dt*self._simulator_target_velocity, self._simulator_target-self._simulator_position)
         elif self._simulator_target < self._simulator_position:
-            delta = max(-dt*self.velocity, self._simulator_target-self._simulator_position)
+            delta = max(-dt*self._simulator_target_velocity, self._simulator_target-self._simulator_position)
         else:
             delta = 0
         
@@ -384,6 +385,7 @@ class Simulator(threading.Thread):
         self._im_d1 = self._data['scan-{}-d1'.format(imk)] * ratio
         self._im_noise = (self._data['white-{}'.format(imk)] * ratio).std(1)[:, numpy.newaxis, :]
         self._im_integration_time = self._camera.integration_time
+        self._im_max_pixel_value = 2**(numpy.ceil(numpy.log(self._im.max()+1) / numpy.log(2))) - 1
         
     @property
     def image(self):
@@ -412,7 +414,7 @@ class Simulator(threading.Thread):
             else:
                 im_data = df_at_pos
                 
-        return im_data
+        return numpy.clip(im_data, 0, self._im_max_pixel_value)
     
     @property
     def dark_frame_0(self):

@@ -20,4 +20,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/plugin/liverefl.py'): ('project',
         (u'--redis redis://130.125.10.26',
          ''))}
-proj.main-file = loc('hics/plugin/liverefl.py')
+proj.main-file = loc('hics/plugin/autoexposure.py')
