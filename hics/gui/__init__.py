@@ -5,7 +5,7 @@ def run():
 
     QtCore.QCoreApplication.setOrganizationName("Université de Neuchâtel")
     QtCore.QCoreApplication.setOrganizationDomain("unine.ch")
-    QtCore.QCoreApplication.setApplicationName("HyperSpectral Camera Controller")
+    QtCore.QCoreApplication.setApplicationName("Hyperspectral Imaging Control System")
     
     app = QtGui.QApplication(sys.argv)
     mw = MainWindow()
