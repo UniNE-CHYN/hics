@@ -64,6 +64,8 @@ class FrameConverter(threading.Thread):
                 
             #Is this a frame?
             if channel == 'hics:framegrabber:frame_raw':
+                #FIXME: more optimal way?
+                self._reread_variables()
                 #Load data
                 frame = numpy.require(pickle.loads(item['data']), dtype = numpy.float)
                 #If shutter is closed and we have enough delay
