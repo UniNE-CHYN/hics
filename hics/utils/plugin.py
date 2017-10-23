@@ -307,16 +307,22 @@ class BasePlugin:
         self._redis_client.set('hics:scanner:velocity', velocity)
         
     def move_absolute(self, position, min_speed = None, max_speed = None, current_position = None):
-        if current_position is not None:
-            max_speed = max(min_speed, min(abs(position - current_position), max_speed))
-            
         if min_speed is None:
             min_speed = int(self._redis_client.get('hics:scanner:velocity_min'))
         if max_speed is None:
             max_speed = int(self._redis_client.get('hics:scanner:velocity_max'))
             
-        self._redis_client.publish('hics:scanner:velocity', max_speed)
-        self._redis_client.publish('hics:scanner:move_absolute', position)
+        speed = max_speed
+        
+        if current_position is not None:
+            min_dt = 0.1
+            if abs(position - current_position) / speed < min_dt:
+                speed = abs(position - current_position) / min_dt
+            
+            #max_speed = max(min_speed, min(abs(position - current_position), max_speed))
+            
+        self._redis_client.publish('hics:scanner:velocity', int(speed))
+        self._redis_client.publish('hics:scanner:move_absolute', int(position))
         
 class BaseWorkerPlugin(BasePlugin):
     plugin_input = []

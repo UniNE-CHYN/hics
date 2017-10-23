@@ -15,7 +15,7 @@ class AutoExposure(BaseImperativePlugin):
     plugin_listens = ['hics:framegrabber:frame_raw', 'hics:scanner:state']
     plugin_requires_lock = True
     
-    plugin_input_before = ['integerspinbox:0:100:99', 'integerspinbox:0:100:75', 'integerspinbox:0:100:85']
+    plugin_input_before = ['integerspinbox:0:100:99', 'integerspinbox:0:100:70', 'integerspinbox:0:100:90']
     plugin_input_before_captions = ['Percentile', 'Lowest acceptable magnitude', 'Highest acceptable magnitude']
     
     def __init__(self, *a, **kw):
@@ -46,7 +46,7 @@ class AutoExposure(BaseImperativePlugin):
         in_scan = False
         frames = []
         last_integration_time = None
-        while True:
+        while not self._stop:
             key, data = self._queue.get()
             if key == 'hics:framegrabber:frame_raw' and in_scan:
                 frames.append(pickle.loads(data))
@@ -62,8 +62,7 @@ class AutoExposure(BaseImperativePlugin):
                         if len(frames) == 0:
                             continue
                         #Process frames
-                        data = numpy.concatenate(frames, 1)
-                        p = numpy.percentile(data, self._percentile) / pixel_max * 100
+                        p = max([numpy.percentile(f, self._percentile) for f in frames]) / pixel_max * 100
                         target_p = (self._lowest_acceptable_magnitude + self._highest_acceptable_magnitude) / 2
                         integration_time = float(self._redis_client.get('hics:camera:integration_time'))
                         integration_time_min = float(self._redis_client.get('hics:camera:integration_time_min'))
@@ -95,9 +94,9 @@ class AutoExposure(BaseImperativePlugin):
                         target_pos = pos_2
                         
                 if in_scan:
-                    self.move_absolute(target_pos, min_speed=self._scan_velocity, max_speed=self._scan_velocity)
+                    self.move_absolute(target_pos, min_speed=self._scan_velocity, max_speed=self._scan_velocity, current_position=position)
                 else:
-                    self.move_absolute(target_pos)
+                    self.move_absolute(target_pos, current_position=position)
 
     
             
