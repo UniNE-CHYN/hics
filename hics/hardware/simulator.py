@@ -384,6 +384,7 @@ class Simulator(threading.Thread):
         self._im_d0 = self._data['scan-{}-d0'.format(imk)] * ratio
         self._im_d1 = self._data['scan-{}-d1'.format(imk)] * ratio
         self._im_noise = (self._data['white-{}'.format(imk)] * ratio).std(1)[:, numpy.newaxis, :]
+        self._im_noise[self._im_noise == 0] = self._im_noise[self._im_noise != 0].min()
         self._im_integration_time = self._camera.integration_time
         self._im_max_pixel_value = 2**(numpy.ceil(numpy.log(self._im.max()+1) / numpy.log(2))) - 1
         
