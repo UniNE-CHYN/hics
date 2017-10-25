@@ -324,6 +324,33 @@ class BasePlugin:
         self._redis_client.publish('hics:scanner:velocity', int(speed))
         self._redis_client.publish('hics:scanner:move_absolute', int(position))
         
+    def _parse_list_or_range(self, s, conversion_function):
+        r = []
+        for x in s.split(','):
+            if x == '':
+                continue
+            x_parts = x.split(':')
+            if len(x_parts) == 1:
+                try:
+                    r.append(conversion_function(x_parts[0]))
+                except:
+                    pass
+            elif len(x_parts) == 2:
+                try:
+                    r += list(numpy.arange(conversion_function(x_parts[0]), conversion_function(x_parts[1])))
+                except:
+                    pass
+            elif len(x_parts) == 3:
+                try:
+                    r += list(numpy.arange(
+                        conversion_function(x_parts[0]),
+                        conversion_function(x_parts[1]),
+                        conversion_function(x_parts[2])
+                    ))
+                except:
+                    pass  
+        return r
+        
 class BaseWorkerPlugin(BasePlugin):
     plugin_input = []
     plugin_output = ['progress']

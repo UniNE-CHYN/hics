@@ -134,7 +134,10 @@ class ScannerWindow(QtGui.QWidget, Ui_Scanner):
                 self.sbSpeed.setValue(velocity)
                 self.sbSpeed.blockSignals(False)
                 
-        step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        if self.sbTo.value() != self.sbFrom.value():
+            step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        else:
+            step_size = 1
         self.slPosition.setSingleStep(step_size)
         self.slPosition.setPageStep(10*step_size)
             

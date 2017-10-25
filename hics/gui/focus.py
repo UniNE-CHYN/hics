@@ -109,7 +109,10 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
                 self.slPosition.blockSignals(False)
                 self.lbPosition.setText(str(position))
                 
-        step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        if self.sbTo.value() != self.sbFrom.value():
+            step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
+        else:
+            step_size = 1
         self.slPosition.setSingleStep(step_size)
         self.slPosition.setPageStep(10*step_size)
             

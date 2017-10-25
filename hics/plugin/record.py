@@ -15,9 +15,9 @@ from mmappickle import mmapdict
 from mmappickle.stubs import EmptyNDArray
 
 
-class RecordScan(BaseImperativePlugin):
-    plugin_name = 'Record while scanning'
-    plugin_key = 'recordscan'
+class Record(BaseImperativePlugin):
+    plugin_name = 'Record'
+    plugin_key = 'record'
     plugin_input = []
     plugin_output = []
     plugin_output_captions = []
@@ -32,6 +32,7 @@ class RecordScan(BaseImperativePlugin):
         'string:' + '',  #'10000,0,-4000,-8000,-12000,-16000,-20000,-24000,-28000,-32000,-36000,-40000,-44000,-48000,-52000,-56000',
         'integerspinbox:0:300:0',
         'integerspinbox:0:300:5',
+        'string:', 
         'string:'
     ]
     plugin_input_before_captions = [
@@ -40,6 +41,7 @@ class RecordScan(BaseImperativePlugin):
         'Focus positions', 
         'Dark frame time',
         'White frame time',
+        'Scan times', 
         'Scan description'
     ]
 
@@ -51,8 +53,8 @@ class RecordScan(BaseImperativePlugin):
         self._directory = self._input_before[0].decode('utf8').strip()
         self._dark_frame_time = int(self._input_before[3].decode('utf8').strip())
         self._white_frame_time = int(self._input_before[4].decode('utf8').strip())
-        self._integration_times = [float(x.strip()) for x in self._input_before[1].decode('utf8').split(',') if x != '']
-        self._focus_positions = [int(x.strip()) for x in self._input_before[2].decode('utf8').split(',') if x != '']
+        self._integration_times = self._parse_list_or_range(self._input_before[1].decode('utf8'), lambda x: float(x))
+        self._focus_positions = self._parse_list_or_range(self._input_before[2].decode('utf8'), lambda x: float(x))
         if not os.path.exists(self._directory):
             os.mkdir(self._directory)
             
@@ -62,7 +64,9 @@ class RecordScan(BaseImperativePlugin):
         self._range_from = int(self._redis_client.get('hics:scanner:range_from'))
         self._range_to = int(self._redis_client.get('hics:scanner:range_to'))
         
-        self._description = self._input_before[5].decode('utf8')
+        self._scan_times = self._parse_list_or_range(self._input_before[5].decode('utf8'), lambda x: float(x))
+        
+        self._description = self._input_before[6].decode('utf8')
         
         super().start()
 
@@ -145,11 +149,15 @@ class RecordScan(BaseImperativePlugin):
             #Size is not known...
             self._redis_client.publish('hics:scanner:move_absolute', capture_end_position)
             
+            #Clear queue
+            self.clear_queue()
+            
             frames = []
             moving = False
+            position = None
             while len(frames) == 0 or moving:
                 key, data = self._queue.get()
-                if key == 'hics:framegrabber:frame_raw' and moving:
+                if key == 'hics:framegrabber:frame_raw' and (moving or capture_end_position == position):
                     frames.append(pickle.loads(data))
                 elif key == 'hics:scanner:state':
                     state = [int(x) for x in data.split(b':')]
@@ -203,7 +211,9 @@ class RecordScan(BaseImperativePlugin):
             self._focus_positions = [None]
             
         if len(self._integration_times) == 0:
-            self._integration_times = [None]        
+            self._integration_times = [None]
+        if len(self._scan_times) == 0:
+            self._scan_times = [0]
         
         if self._white_frame_time > 0:
             for scan_idx, integration_time in enumerate(self._integration_times):
@@ -214,39 +224,46 @@ class RecordScan(BaseImperativePlugin):
                 self._capture_frames(data, 'white-{:05d}'.format(scan_idx), frame_shape, 1, 1, data_frames_count= int(self._white_frame_time * frame_rate))
         
         scan_idx = 0
-        for focus_position in self._focus_positions:
-            if focus_position is not None:
-                #FIXME: wait to settle position
-                print("hics:focus:move_absolute", focus_position)
-                self._redis_client.publish("hics:focus:move_absolute", focus_position)
-                
-            for integration_time in self._integration_times:
-                if integration_time is not None:
-                    self._redis_client.publish('hics:camera:integration_time', integration_time)
-                
-                moving, current_position = self.get_position()
-                reversed_scan = numpy.abs(current_position - self._range_from) > numpy.abs(current_position - self._range_to)
-                
-                if reversed_scan:
-                    self.move_to(self._range_to)
-                    target_position = self._range_from
-                else:
-                    self.move_to(self._range_from)
-                    target_position = self._range_to
+        start_time = time.time()
 
-                self._redis_client.publish('hics:scanner:velocity', self._scan_velocity)
+        for scan_time in self._scan_times:
+            dt = time.time() - start_time
+            if scan_time > dt:
+                time.sleep(scan_time-dt)
                 
-                self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
-                                    dark_frame_count, dark_frame_count, capture_end_position = target_position,
-                                    reversed_scan = reversed_scan,
-                                    dark_frame_store_stats = dark_frame_store_stats)
-                scan_idx += 1
+            for focus_position in self._focus_positions:
+                if focus_position is not None:
+                    #FIXME: wait to settle position
+                    print("hics:focus:move_absolute", focus_position)
+                    self._redis_client.publish("hics:focus:move_absolute", focus_position)
+                    
+                for integration_time in self._integration_times:
+                    if integration_time is not None:
+                        self._redis_client.publish('hics:camera:integration_time', integration_time)
+                    
+                    moving, current_position = self.get_position()
+                    reversed_scan = numpy.abs(current_position - self._range_from) > numpy.abs(current_position - self._range_to)
+                    
+                    if reversed_scan:
+                        self.move_to(self._range_to)
+                        target_position = self._range_from
+                    else:
+                        self.move_to(self._range_from)
+                        target_position = self._range_to
+    
+                    self._redis_client.publish('hics:scanner:velocity', self._scan_velocity)
+                    
+                    self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
+                                        dark_frame_count, dark_frame_count, capture_end_position = target_position,
+                                        reversed_scan = reversed_scan,
+                                        dark_frame_store_stats = dark_frame_store_stats)
+                    scan_idx += 1
 
         self._redis_client.publish('hics:camera:shutter_open', 1)
 
 
 if __name__ == '__main__':
-    RecordScan.main()
+    Record.main()
 
 
 
