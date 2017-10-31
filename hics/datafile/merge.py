@@ -172,8 +172,8 @@ class HDRMaker:
                 
                 self._output_data[k_data] = numpy.rollaxis(skimage.transform.warp(numpy.rollaxis(im,1,0), tf, clip = False),1,0)
                 self._output_data[k_mask] = 1. - numpy.rollaxis(skimage.transform.warp(numpy.rollaxis(1.-im.mask,1,0), tf, clip = False),1,0)
-                #mask = numpy.array(self._output_data[k_mask], dtype=numpy.bool)
-                #self._output_data[k_data][mask] = numpy.nan
+                mask = numpy.array(self._output_data[k_mask], dtype=numpy.bool)
+                self._output_data[k_data][mask] = 0
                 self._output_data[k_var] = numpy.rollaxis(skimage.transform.warp(numpy.rollaxis(im_var,1,0), tf, clip = False),1,0)
 
         return self._output_data[k_data], self._output_data[k_mask], self._output_data[k_var]
