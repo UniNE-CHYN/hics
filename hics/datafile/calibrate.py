@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--cropframes', help = 'crop n frames before and after each scan')
     
     args = parser.parse_args()
-    input_data, output_data =  hics.utils.datafile.migrate_base_data(args, 'hics.datafile.'+os.path.splitext(os.path.basename(__file__))[0])
+    input_data, output_data =  hics.utils.datafile.migrate_base_data(args, 'hics.datafile.calibrate')
     if args.calibration is not None:
         calibration_data = pickle.load(args.calibration)
     else:
