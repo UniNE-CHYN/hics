@@ -23,3 +23,16 @@ def migrate_base_data(args, module):
     output_data['processing_steps'] = processing_steps
     
     return input_data, output_data
+
+def get_cpu_count(args=None):
+    import multiprocessing, os
+    if args is not None and args.parallel is not None:
+        numcpus = args.parallel
+    elif 'WINGDB_ACTIVE' in os.environ:
+        numcpus = 1
+    elif 'SLURM_JOB_CPUS_PER_NODE' in os.environ:
+        numcpus = int(os.environ['SLURM_JOB_CPUS_PER_NODE'])
+    else:
+        numcpus = multiprocessing.cpu_count()
+    
+    return numcpus

@@ -75,25 +75,45 @@ class HDRMakerCorr:
             corr_score = numpy.abs(delta).sum() / (~delta.mask).sum()
             self._output_data[ckey] = corr_pos_rel, corr_score
         return self._output_data[ckey]
+    
+def job_match(a):
+    im_i, im_j, flip_x, flip_y, input_data, output_data = a
+    hdr = HDRMakerCorr(input_data, output_data)
+    pos, score = hdr.get_pos_and_score(im_i, im_j, flip_x=flip_x, flip_y=flip_y)
+    print(im_i, im_j, 'Xf:', {True: 1, False: 0}[flip_x], 'Yf:', {True: 1, False: 0}[flip_y], pos, score)
+    return pos, score
 
 if __name__ == '__main__':
     import argparse
     import hics.utils.datafile
+    import multiprocessing
     
     parser = argparse.ArgumentParser()    
     parser.add_argument('--input', help = 'input file (reflectance file)', required = True)
     parser.add_argument('--output', help = 'output file (hdr file)', required=True)
     parser.add_argument('--clean', help = 'leave only hdr data in output file', action='store_true')
+    parser.add_argument('--parallel', type=int, required=False)
     
     args = parser.parse_args()
     
     input_data, output_data =  hics.utils.datafile.migrate_base_data(args, 'hics.datafile.mergecorr')
     
-    
     hdr = HDRMakerCorr(input_data, output_data)
-    for im_i, im_j, flip_x, flip_y in itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False]):
-        print(im_i, im_j, flip_x, flip_y)
-        print(hdr.get_pos_and_score(im_i, im_j, flip_x=flip_x, flip_y=flip_y))
+    
+    #Match images (CPU intensive)
+    parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False], [input_data], [output_data]))
+    
+    numcpus = hics.utils.datafile.get_cpu_count(args)
+    
+    
+    
+    if numcpus == 1:
+        for a in parameters_to_compute:
+            job_match(a)
+    else:
+        with multiprocessing.Pool(numcpus) as p:
+            for k in p.imap_unordered(job_match, parameters_to_compute):
+                pass    
     sys.exit(0)
     
 import numpy
