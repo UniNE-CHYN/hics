@@ -120,73 +120,89 @@ if __name__ == '__main__':
             for k in p.imap_unordered(job_get_patches_for, itertools.product(hdr.im_ids, [input_data], [output_data])):
                 pass                
             for k in p.imap_unordered(job_match, parameters_to_compute):
-                pass    
-    sys.exit(0)
-    
-import numpy
-import skimage.transform
-import IPython
-from matplotlib import pyplot as plt
-from mmappickle import mmapdict
-import scipy.signal
-#srcpoints=numpy.load('src.npy')
-#dstpoints=numpy.load('dst.npy')
-
-#IPython.embed()
-#(dstpoints, srcpoints)
-#skimage.transform.AffineTransform
-d = mmapdict('../unige/ER-146-F.calibrated',True)
-srcim = d['refl-00000'][:,:,64] #[:,::-1] #move
-dstim = d['refl-00001'][:,:,64] #Doesn't move
-
-self.patch_size = numpy.array([50, 50]) #should be divisible by 2 in each dimension
-patch_positions = (1/6, 1/2, 5/6)
-
-
-
-#Generate patches
-patches = {}
-for flip_y in [True,False]:
-    for flip_x in [True,False]:
-        patches[flip_y, flip_x] = []
-        srcim_flipped = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
+                pass
+            
+    possibilities = list(itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False]))
+    score_matrix = numpy.zeros((len(possibilities), 7))
+    for p_id, a in enumerate(possibilities):
+        im_i, im_j, flip_y, flip_x = a
+        pos, score = hdr.get_pos_and_score(im_i, im_j, flip_x=flip_x, flip_y=flip_y)
+        score_matrix[p_id][0] = im_i
+        score_matrix[p_id][1] = im_j
+        score_matrix[p_id][2] = flip_y
+        score_matrix[p_id][3] = flip_x
+        score_matrix[p_id][4] = score
+        score_matrix[p_id][5] = pos[0]
+        score_matrix[p_id][6] = pos[1]
         
-        for ppyp in patch_positions:
-            ppy = min(max(0, int(ppyp * srcim.shape[0] - self.patch_size[0] / 2)), srcim.shape[0] - self.patch_size[0])
-            for ppxp in patch_positions:
-                ppx = min(max(0, int(ppxp * srcim.shape[1] - self.patch_size[1] / 2)), srcim.shape[1] - self.patch_size[1])
-                
-                patch = numpy.copy(srcim_flipped[ppy:ppy+self.patch_size[0],ppx:ppx+self.patch_size[1]])
-                patch -= patch.mean()
-                assert patch.shape==self.patch_size
-                
-                patches[flip_y, flip_x].append((patch, (ppy, ppx)))
-                
-                
-flip_y, flip_x = False, False
+    #Sort by 4-th column
+    score_matrix = score_matrix[score_matrix[:, 4].argsort()]
+    #remove images which are matched to themselves
+    score_matrix = score_matrix[score_matrix[:, 0]!=score_matrix[:, 1]]
+    
+    #Greedy reconstruct
+    #(im_id, pos_y, pos_x, flip_y, flip_x)
+    images = [(int(score_matrix[0][1]), 0, 0, 0, 0)]
+    
+    im_shapes = dict([(k, hdr.get_im(k).shape) for k in hdr.im_ids])
+    
+    def blit_images(im_list):
+        im_dict = {}
+        min_pos_y = 0
+        max_pos_y = 0
+        min_pos_x = 0
+        max_pos_x = 0        
+        for im_list_entry in im_list:
+            im_id, pos_y, pos_x, flip_y, flip_x = im_list_entry
+            im_dict[im_id] = hdr.get_im(im_id)
+            min_pos_y = min(pos_y, min_pos_y)
+            min_pos_x = min(pos_x, min_pos_x)
+            max_pos_y = max(pos_y+im_dict[im_id].shape[0], max_pos_y)
+            max_pos_x = max(pos_x+im_dict[im_id].shape[1], max_pos_x)
+            
+        target = numpy.ma.zeros((max_pos_y-min_pos_y, max_pos_x-min_pos_x))
+        target_coeff = numpy.ma.zeros((max_pos_y-min_pos_y, max_pos_x-min_pos_x))
+        for im_list_entry in im_list:
+            im_id, pos_y, pos_x, flip_y, flip_x = im_list_entry
+            im = im_dict[im_id]
+            target[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += im[::{1:-1,0:1}[flip_y],::{1:-1,0:1}[flip_x]]
+            target_coeff[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += 1
+            
+        return numpy.ma.masked_invalid(target / target_coeff)
+        
 
-target = numpy.copy(dstim)
-target -= target.mean()
-corr_im = numpy.zeros(numpy.array(srcim.shape)+numpy.array(dstim.shape))
-for patch, pos in patches[flip_y, flip_x]:
-    print(pos)
-    corr = scipy.signal.correlate2d(target, patch, boundary='symm', mode='same')
-    corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
-
-corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - self.patch_size//2
-
-#Evaluate score
-#Get intersection image
-
-dstim_padded = numpy.ones(2*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
-dstim_padded[srcim.shape[0]:srcim.shape[0]+dstim.shape[0], srcim.shape[1]:srcim.shape[1]+dstim.shape[1]] = dstim
-
-srcim_padded = numpy.ones(2*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
-srcim_padded[corr_pos[0]:corr_pos[0]+srcim.shape[0], corr_pos[1]:corr_pos[1]+srcim.shape[1]] = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
-
-delta = numpy.ma.masked_invalid(dstim_padded - srcim_padded)
-print(numpy.abs(delta).sum() / (~delta.mask).sum())
-
-
-plt.imshow(numpy.ma.masked_invalid(dstim_padded - srcim_padded))
-plt.show()
+    while any([x not in [y[0] for y in images] for x in hdr.im_ids]):
+        found = False
+        for score_im_i, score_im_j, score_flip_y, score_flip_x, score_score, score_pos_y, score_pos_x in score_matrix:
+            #Image already seen
+            if int(score_im_i) in [y[0] for y in images]:
+                continue
+            for cur_im_id, cur_pos_y, cur_pos_x, cur_flip_y, cur_flip_x in images:
+                if int(score_im_j) == cur_im_id:
+                    found = True
+                    new_im_id = int(score_im_i)
+                    if not cur_flip_x:
+                        new_pos_x = cur_pos_x + score_pos_x
+                    else:
+                        new_pos_x = cur_pos_x + im_shapes[cur_im_id][1] - score_pos_x - im_shapes[score_im_j][1]
+                    if not cur_flip_y:
+                        new_pos_y = cur_pos_y + score_pos_y
+                    else:
+                        assert False
+                        
+                    new_flip_x = cur_flip_x ^ int(score_flip_x)
+                    new_flip_y = cur_flip_y ^ int(score_flip_y)
+                    
+                    images.append((new_im_id, int(new_pos_y), int(new_pos_x), new_flip_y, new_flip_x))
+                    break
+            if found:
+                break
+                    
+        if not found:
+            break
+        
+    im = blit_images(images)
+    from matplotlib import pyplot as plt
+    plt.imshow(im)
+    plt.colorbar()
+    plt.show()
