@@ -76,6 +76,11 @@ class HDRMakerCorr:
             self._output_data[ckey] = corr_pos_rel, corr_score
         return self._output_data[ckey]
     
+def job_get_patches_for(a):
+    im_i, input_data, output_data = a
+    hdr = HDRMakerCorr(input_data, output_data)
+    hdr.get_patches_for(im_i)
+    
 def job_match(a):
     im_i, im_j, flip_x, flip_y, input_data, output_data = a
     hdr = HDRMakerCorr(input_data, output_data)
@@ -112,6 +117,8 @@ if __name__ == '__main__':
             job_match(a)
     else:
         with multiprocessing.Pool(numcpus) as p:
+            for k in p.imap_unordered(job_get_patches_for, itertools.product(hdr.im_ids, [input_data], [output_data])):
+                pass                
             for k in p.imap_unordered(job_match, parameters_to_compute):
                 pass    
     sys.exit(0)
