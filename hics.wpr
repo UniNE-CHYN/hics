@@ -27,7 +27,10 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
         (u'--input /media/laurent/T5/migrate_library/20160624_jakobsberg/20160624094408.scan --output /tmp/out.refl --max 16000',
          '')),
                       loc('hics/datafile/merge.py'): ('project',
-        (u'--input /data/scans/20160624094408.refl --output /tmp/out.hdr',
+        (u'--input /media/laurent/T5/migrate_library/unige/ER-146-F.calibrated --output /media/laurent/T5/migrate_library/unige/ER-146-F.hdr',
+         '')),
+                      loc('hics/datafile/mergecorr.py'): ('project',
+        (u'--input /media/laurent/T5/migrate_library/unige/ER-146-F.calibrated --output /media/laurent/T5/migrate_library/unige/ER-146-F.hdr',
          '')),
                       loc('hics/hardware/simulator.py'): ('project',
         (u'--datafile /data/scans/20171019104600.scan',
@@ -44,4 +47,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/plugin/recordscan.py'): ('project',
         (u'--redis redis://130.125.10.26',
          ''))}
-proj.main-file = loc('hics/datafile/merge.py')
+proj.main-file = loc('hics/datafile/mergecorr.py')

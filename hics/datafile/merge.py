@@ -191,12 +191,6 @@ if __name__ == '__main__':
     
     input_data, output_data =  hics.utils.datafile.migrate_base_data(args, 'hics.datafile.merge')
     
-    if False:
-        for k in list(output_data.keys()):
-            if k.startswith('transform'):
-                del output_data[k]
-                
-        output_data.vacuum()
     
     hdr = HDRMaker(input_data, output_data)
     im_ids = hdr._im_ids
