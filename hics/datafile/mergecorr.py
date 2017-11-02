@@ -146,6 +146,20 @@ if __name__ == '__main__':
     
     im_shapes = dict([(k, hdr.get_im(k).shape) for k in hdr.im_ids])
     
+    def make_mask(im):
+        def make_mask_vec(l):
+            hmv = numpy.linspace(0, 1, int(numpy.ceil(l/2)) + 1)
+            if l % 2 == 1:
+                return numpy.concatenate([hmv[1:-1], hmv[1:][::-1]])
+            else:
+                return numpy.concatenate([hmv[1:], hmv[1:][::-1]])
+            
+        vm = make_mask_vec(im.shape[0])[:, numpy.newaxis]
+        hm = make_mask_vec(im.shape[1])[numpy.newaxis, :]
+        return vm * hm
+        
+            
+    
     def blit_images(im_list):
         im_dict = {}
         min_pos_y = 0
@@ -165,8 +179,9 @@ if __name__ == '__main__':
         for im_list_entry in im_list:
             im_id, pos_y, pos_x, flip_y, flip_x = im_list_entry
             im = im_dict[im_id]
-            target[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += im[::{1:-1,0:1}[flip_y],::{1:-1,0:1}[flip_x]]
-            target_coeff[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += 1
+            coeff_matrix = make_mask(im)  #numpy.ones_like(im)   #FIXME: improve this!
+            target[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += im[::{1:-1,0:1}[flip_y],::{1:-1,0:1}[flip_x]] * coeff_matrix
+            target_coeff[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += coeff_matrix
             
         return numpy.ma.masked_invalid(target / target_coeff)
         
@@ -188,7 +203,7 @@ if __name__ == '__main__':
                     if not cur_flip_y:
                         new_pos_y = cur_pos_y + score_pos_y
                     else:
-                        assert False
+                        new_pos_y = cur_pos_y + im_shapes[cur_im_id][0] - score_pos_y - im_shapes[score_im_j][0]
                         
                     new_flip_x = cur_flip_x ^ int(score_flip_x)
                     new_flip_y = cur_flip_y ^ int(score_flip_y)
@@ -204,5 +219,8 @@ if __name__ == '__main__':
     im = blit_images(images)
     from matplotlib import pyplot as plt
     plt.imshow(im)
+    plt.clim(0, 1)
     plt.colorbar()
     plt.show()
+    import IPython
+    IPython.embed()
