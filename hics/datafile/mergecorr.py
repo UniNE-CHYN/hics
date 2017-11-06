@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 class HDRMakerCorr:
     patch_size = numpy.array([50, 50]) #should be divisible by 2 in each dimension
     patch_positions = (1/6, 1/2, 5/6)
-    nwavelengths = 30
+    nwavelengths = 5
     
     def __init__(self, input_data, output_data):
         self._input_data = input_data
@@ -48,8 +48,11 @@ class HDRMakerCorr:
                             
                             patch = numpy.copy(srcim_flipped[ppy:ppy+self.patch_size[0],ppx:ppx+self.patch_size[1]])
                             
-                            imgvar = numpy.reshape(patch,(patch.shape[0]*patch.shape[1],patch.shape[2])).var(0)
-                            wavelengths = numpy.argsort(scipy.ndimage.median_filter(imgvar,3))[-self.nwavelengths:]
+                            #This also makes sense:
+                            #numpy.percentile(patch.var(1), 90, 0)
+                            wavelengths = numpy.random.choice(patch.shape[2], self.nwavelengths, replace=False)
+                            #imgvar = numpy.reshape(patch,(patch.shape[0]*patch.shape[1],patch.shape[2])).var(0)
+                            #wavelengths = numpy.argsort(scipy.ndimage.median_filter(imgvar,3))[-self.nwavelengths:]
                             
                             patch = patch[:, :, wavelengths]
                             patch -= patch.mean(0).mean(0)[numpy.newaxis, numpy.newaxis, :]
