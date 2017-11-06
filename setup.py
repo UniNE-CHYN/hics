@@ -1,8 +1,8 @@
 from setuptools import setup
 setup(
-    name='hscc',
+    name='hics',
     version='1.0',
-    py_modules=['hscc'],
+    py_modules=['hics'],
     author="Laurent Fasnacht",
     author_email="l@libres.ch"
 )
