@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 class HDRMakerCorr:
     patch_size = numpy.array([50, 50]) #should be divisible by 2 in each dimension
     patch_positions = (1/6, 1/2, 5/6)
+    nwavelengths = 30
     
     def __init__(self, input_data, output_data):
         self._input_data = input_data
@@ -48,14 +49,12 @@ class HDRMakerCorr:
                             patch = numpy.copy(srcim_flipped[ppy:ppy+self.patch_size[0],ppx:ppx+self.patch_size[1]])
                             
                             imgvar = numpy.reshape(patch,(patch.shape[0]*patch.shape[1],patch.shape[2])).var(0)
-                            best_wavelength = numpy.argmax(scipy.ndimage.median_filter(imgvar,3))
+                            wavelengths = numpy.argsort(scipy.ndimage.median_filter(imgvar,3))[-self.nwavelengths:]
                             
-                            patch = patch[:, :, best_wavelength]
+                            patch = patch[:, :, wavelengths]
+                            patch -= patch.mean(0).mean(0)[numpy.newaxis, numpy.newaxis, :]
                             
-                            patch -= patch.mean()
-                            assert patch.shape== tuple(self.patch_size)
-                            
-                            patches[flip_y, flip_x].append((patch, (ppy, ppx, best_wavelength)))
+                            patches[flip_y, flip_x].append((patch, (ppy, ppx, wavelengths)))
                             
             self._output_data[ckey] = patches
         return self._output_data[ckey]
@@ -69,11 +68,13 @@ class HDRMakerCorr:
             #target -= target.mean()
             corr_im = numpy.zeros(numpy.array(srcim.shape[:2])+numpy.array(dstim.shape[:2]))
             for patch, pos in self.get_patches_for(im_id)[flip_y, flip_x]:
-                target_at_wavelength = target[:, :, pos[2]]
-                target_at_wavelength -= target_at_wavelength.mean()
-                corr = scipy.signal.correlate2d(target_at_wavelength, patch, boundary='symm', mode='same')
-                corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
-            
+                pos, wavelengths = pos[:2], pos[2]
+                for patch_wavelength_id, target_wavelength_id in enumerate(wavelengths):
+                    target_at_wavelength = target[:, :, target_wavelength_id]
+                    target_at_wavelength -= target_at_wavelength.mean()
+                    corr = scipy.signal.correlate2d(target_at_wavelength, patch[:, :, patch_wavelength_id], boundary='symm', mode='same')
+                    corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
+                
             corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - self.patch_size//2 + numpy.array([1, 1])
             
             #dstim_padded = numpy.ones((2*srcim.shape[0] + dstim.shape[0], 2*srcim.shape[1] + dstim.shape[1], dstim.shape[2]))*numpy.nan
