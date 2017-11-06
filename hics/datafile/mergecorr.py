@@ -76,10 +76,10 @@ class HDRMakerCorr:
             
             corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - self.patch_size//2 + numpy.array([1, 1])
             
-            dstim_padded = numpy.ones(2*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
+            dstim_padded = numpy.ones(numpy.array([2,2,1])*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
             dstim_padded[srcim.shape[0]:srcim.shape[0]+dstim.shape[0], srcim.shape[1]:srcim.shape[1]+dstim.shape[1]] = dstim
             
-            srcim_padded = numpy.ones(2*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
+            srcim_padded = numpy.ones(numpy.array([2,2,1])*numpy.array(srcim.shape)+numpy.array(dstim.shape))*numpy.nan
             srcim_padded[corr_pos[0]:corr_pos[0]+srcim.shape[0], corr_pos[1]:corr_pos[1]+srcim.shape[1]] = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
             
             delta = numpy.ma.masked_invalid(dstim_padded - srcim_padded)
