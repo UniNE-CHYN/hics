@@ -32,7 +32,7 @@ class HDRMakerCorr:
     def get_patches_for(self, im_id):
         ckey = 'patches-{0:05d}'.format(im_id)
         if ckey not in self._output_data.keys():
-            srcim = self.get_im(im_id)
+            srcim = self.get_im(im_id, True)
             #Generate patches
             patches = {}
             for flip_y in [True,False]:
@@ -46,10 +46,16 @@ class HDRMakerCorr:
                             ppx = min(max(0, int(ppxp * srcim.shape[1] - self.patch_size[1] / 2)), srcim.shape[1] - self.patch_size[1])
                             
                             patch = numpy.copy(srcim_flipped[ppy:ppy+self.patch_size[0],ppx:ppx+self.patch_size[1]])
+                            
+                            imgvar = numpy.reshape(patch,(patch.shape[0]*patch.shape[1],patch.shape[2])).var(0)
+                            best_wavelength = numpy.argmax(scipy.ndimage.median_filter(imgvar,3))
+                            
+                            patch = patch[:, :, best_wavelength]
+                            
                             patch -= patch.mean()
                             assert patch.shape== tuple(self.patch_size)
                             
-                            patches[flip_y, flip_x].append((patch, (ppy, ppx)))
+                            patches[flip_y, flip_x].append((patch, (ppy, ppx, best_wavelength)))
                             
             self._output_data[ckey] = patches
         return self._output_data[ckey]
@@ -57,13 +63,15 @@ class HDRMakerCorr:
     def get_pos_and_score(self, im_id, match_on_im, flip_y, flip_x):
         ckey = 'match-{:05d}-{:05d}-{}-{}'.format(im_id, match_on_im, {True: 1, False: 0}[flip_y], {True: 1, False: 0}[flip_x])
         if ckey not in self._output_data.keys():        
-            srcim = self.get_im(im_id)
-            dstim = self.get_im(match_on_im)
+            srcim = self.get_im(im_id, True)
+            dstim = self.get_im(match_on_im, True)
             target = numpy.copy(dstim)
-            target -= target.mean()
-            corr_im = numpy.zeros(numpy.array(srcim.shape)+numpy.array(dstim.shape))
+            #target -= target.mean()
+            corr_im = numpy.zeros(numpy.array(srcim.shape[:2])+numpy.array(dstim.shape[:2]))
             for patch, pos in self.get_patches_for(im_id)[flip_y, flip_x]:
-                corr = scipy.signal.correlate2d(target, patch, boundary='symm', mode='same')
+                target_at_wavelength = target[:, :, pos[2]]
+                target_at_wavelength -= target_at_wavelength.mean()
+                corr = scipy.signal.correlate2d(target_at_wavelength, patch, boundary='symm', mode='same')
                 corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
             
             corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - self.patch_size//2 + numpy.array([1, 1])
