@@ -11,14 +11,14 @@ import functools
 from matplotlib import pyplot as plt
 
 class HDRMakerCorr:
-    patch_size = numpy.array([50, 50]) #should be divisible by 2 in each dimension
-    patch_positions = (1/6, 1/2, 5/6)
-    nwavelengths = 5
-    
-    def __init__(self, input_data, output_data):
+    def __init__(self, input_data, output_data, args):
         self._input_data = input_data
         self._output_data = output_data
         self._im_ids = sorted([int(x[5:]) for x in input_data.keys() if x.startswith('refl-') and x[5:].isnumeric()])
+        self.patch_size = numpy.array([args.psy, args.psx], dtype=numpy.int)
+        self.patch_positions_x = args.ppx
+        self.patch_positions_y = args.ppy
+        self.nwavelengths = args.nwl
         
     @property
     def im_ids(self):
@@ -41,9 +41,9 @@ class HDRMakerCorr:
                     patches[flip_y, flip_x] = []
                     srcim_flipped = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
                     
-                    for ppyp in self.patch_positions:
+                    for ppyp in self.patch_positions_y:
                         ppy = min(max(0, int(ppyp * srcim.shape[0] - self.patch_size[0] / 2)), srcim.shape[0] - self.patch_size[0])
-                        for ppxp in self.patch_positions:
+                        for ppxp in self.patch_positions_x:
                             ppx = min(max(0, int(ppxp * srcim.shape[1] - self.patch_size[1] / 2)), srcim.shape[1] - self.patch_size[1])
                             
                             patch = numpy.copy(srcim_flipped[ppy:ppy+self.patch_size[0],ppx:ppx+self.patch_size[1]])
@@ -200,13 +200,13 @@ class HDRMakerCorr:
         target[target_coeff==0.] = numpy.nan
     
 def job_get_patches_for(a):
-    im_i, input_data, output_data = a
-    hdr = HDRMakerCorr(input_data, output_data)
+    im_i, input_data, output_data, args = a
+    hdr = HDRMakerCorr(input_data, output_data, args)
     hdr.get_patches_for(im_i)
     
 def job_match(a):
-    im_i, im_j, flip_x, flip_y, input_data, output_data = a
-    hdr = HDRMakerCorr(input_data, output_data)
+    im_i, im_j, flip_x, flip_y, input_data, output_data, args = a
+    hdr = HDRMakerCorr(input_data, output_data, args)
     pos, score = hdr.get_pos_and_score(im_i, im_j, flip_x=flip_x, flip_y=flip_y)
     print(im_i, im_j, 'Xf:', {True: 1, False: 0}[flip_x], 'Yf:', {True: 1, False: 0}[flip_y], pos, score)
     return pos, score
@@ -221,15 +221,20 @@ if __name__ == '__main__':
     parser.add_argument('--output', help = 'output file (hdr file)', required=True)
     parser.add_argument('--clean', help = 'leave only hdr data in output file', action='store_true')
     parser.add_argument('--parallel', type=int, required=False)
+    parser.add_argument('--nwl', type=int, default=5, help="Number of wavelengths")
+    parser.add_argument('--psx', type=int, default=32, help="Patch size in x dimension, should be divisible by 2")
+    parser.add_argument('--psy', type=int, default=32, help="Patch size in y dimension, should be divisible by 2")
+    parser.add_argument('--ppx', type=float, nargs='+', default=(1/6, 1/2, 5/6), help="Patch position in x dimension")
+    parser.add_argument('--ppy', type=float, nargs='+', default=(1/6, 1/2, 5/6), help="Patch position in y dimension")
     
     args = parser.parse_args()
     
     input_data, output_data =  hics.utils.datafile.migrate_base_data(args, 'hics.datafile.mergecorr')
     
-    hdr = HDRMakerCorr(input_data, output_data)
+    hdr = HDRMakerCorr(input_data, output_data, args)
     
     #Match images (CPU intensive)
-    parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False], [input_data], [output_data]))
+    parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False], [input_data], [output_data], [args]))
     
     numcpus = hics.utils.datafile.get_cpu_count(args)
     
@@ -240,7 +245,7 @@ if __name__ == '__main__':
             job_match(a)
     else:
         with multiprocessing.Pool(numcpus) as p:
-            for k in p.imap_unordered(job_get_patches_for, itertools.product(hdr.im_ids, [input_data], [output_data])):
+            for k in p.imap_unordered(job_get_patches_for, itertools.product(hdr.im_ids, [input_data], [output_data], [args])):
                 pass                
             for k in p.imap_unordered(job_match, parameters_to_compute):
                 pass
