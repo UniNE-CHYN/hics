@@ -19,25 +19,37 @@ class HDRMakerCorr:
         self.patch_positions_x = args.ppx
         self.patch_positions_y = args.ppy
         self.nwavelengths = args.nwl
+        if args.wl is not None:
+            self.nwavelengths = len(args.wl)
+            self.wavelengths = args.wl
+        else:
+            self.wavelengths = None
+            
+        if args.flipx:
+            self.flips_x = [True, False]
+        else:
+            self.flips_x = [False]
+            
+        if args.flipy:
+            self.flips_y = [True, False]
+        else:
+            self.flips_y = [False]
         
     @property
     def im_ids(self):
         return list(self._im_ids)
     
-    def get_im(self, im_id, full=False):
-        if full:
-            return self._input_data['refl-{0:05d}'.format(im_id)]
-        else:
-            return self._input_data['refl-{0:05d}'.format(im_id)][:, :, 64]
+    def get_im(self, im_id):
+        return self._input_data['refl-{0:05d}'.format(im_id)]
         
     def get_patches_for(self, im_id):
         ckey = 'patches-{0:05d}'.format(im_id)
         if ckey not in self._output_data.keys():
-            srcim = self.get_im(im_id, True)
+            srcim = self.get_im(im_id)
             #Generate patches
             patches = {}
-            for flip_y in [True,False]:
-                for flip_x in [True,False]:
+            for flip_y in self.flips_y:
+                for flip_x in self.flips_x:
                     patches[flip_y, flip_x] = []
                     srcim_flipped = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
                     
@@ -50,7 +62,10 @@ class HDRMakerCorr:
                             
                             #This also makes sense:
                             #numpy.percentile(patch.var(1), 90, 0)
-                            wavelengths = numpy.random.choice(patch.shape[2], self.nwavelengths, replace=False)
+                            if self.wavelengths is not None:
+                                wavelengths = self.wavelengths
+                            else:
+                                wavelengths = numpy.random.choice(patch.shape[2], self.nwavelengths, replace=False)
                             #imgvar = numpy.reshape(patch,(patch.shape[0]*patch.shape[1],patch.shape[2])).var(0)
                             #wavelengths = numpy.argsort(scipy.ndimage.median_filter(imgvar,3))[-self.nwavelengths:]
                             
@@ -65,48 +80,49 @@ class HDRMakerCorr:
     def get_pos_and_score(self, im_id, match_on_im, flip_y, flip_x):
         ckey = 'match-{:05d}-{:05d}-{}-{}'.format(im_id, match_on_im, {True: 1, False: 0}[flip_y], {True: 1, False: 0}[flip_x])
         if ckey not in self._output_data.keys():        
-            srcim = self.get_im(im_id, True)
-            dstim = self.get_im(match_on_im, True)
+            srcim = self.get_im(im_id)[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
+            dstim = self.get_im(match_on_im)
             target = numpy.copy(dstim)
             #target -= target.mean()
             corr_im = numpy.zeros(numpy.array(srcim.shape[:2])+numpy.array(dstim.shape[:2]))
+            corr_im_coeff = numpy.zeros_like(corr_im)
             for patch, pos in self.get_patches_for(im_id)[flip_y, flip_x]:
                 pos, wavelengths = pos[:2], pos[2]
                 for patch_wavelength_id, target_wavelength_id in enumerate(wavelengths):
                     target_at_wavelength = target[:, :, target_wavelength_id]
                     target_at_wavelength -= target_at_wavelength.mean()
-                    corr = scipy.signal.correlate2d(target_at_wavelength, patch[:, :, patch_wavelength_id], boundary='symm', mode='same')
+                    corr = skimage.feature.match_template(target_at_wavelength, patch[:, :, patch_wavelength_id])
                     corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
+                    corr_im_coeff[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += 1
                 
-            corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - self.patch_size//2 + numpy.array([1, 1])
+            corr_im = numpy.ma.masked_invalid(corr_im/corr_im_coeff)
+            corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - srcim.shape[:2]
             
             #dstim_padded = numpy.ones((2*srcim.shape[0] + dstim.shape[0], 2*srcim.shape[1] + dstim.shape[1], dstim.shape[2]))*numpy.nan
             #srcim_padded = numpy.ones((2*srcim.shape[0] + dstim.shape[0], 2*srcim.shape[1] + dstim.shape[1], dstim.shape[2]))*numpy.nan
             #dstim_padded[srcim.shape[0]:srcim.shape[0]+dstim.shape[0], srcim.shape[1]:srcim.shape[1]+dstim.shape[1]] = dstim
             #srcim_padded[corr_pos[0]:corr_pos[0]+srcim.shape[0], corr_pos[1]:corr_pos[1]+srcim.shape[1]] = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]]
             
-            ymin = max(srcim.shape[0], corr_pos[0])
-            ymax = min(srcim.shape[0]+dstim.shape[0], corr_pos[0]+srcim.shape[0])
-            xmin = max(srcim.shape[1], corr_pos[1])
-            xmax = min(srcim.shape[1]+dstim.shape[1], corr_pos[1]+srcim.shape[1])
-            
-            imp1 = dstim[ymin-srcim.shape[0]:ymax-srcim.shape[0], xmin-srcim.shape[1]:xmax-srcim.shape[1]]
-            imp2 = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]][ymin-corr_pos[0]:ymax-corr_pos[0], xmin-corr_pos[1]:xmax-corr_pos[1]]
-            
+            ymin = max(0, corr_pos[0])
+            ymax = min(0+dstim.shape[0], corr_pos[0]+srcim.shape[0])
+            xmin = max(0, corr_pos[1])
+            xmax = min(0+dstim.shape[1], corr_pos[1]+srcim.shape[1])
+        
+            imp1 = dstim[ymin:ymax, xmin:xmax]
+            imp2 = srcim[ymin-corr_pos[0]:ymax-corr_pos[0], xmin-corr_pos[1]:xmax-corr_pos[1]]
+
             delta = numpy.ma.masked_invalid(
                 imp1-\
                 imp2
             )
             
-            import IPython
-            IPython.embed()
-            corr_pos_rel = corr_pos - numpy.array(srcim.shape[:2])
+
             corr_score = numpy.abs(delta).sum() / (~delta.mask).sum()
-            self._output_data[ckey] = corr_pos_rel, corr_score
+            self._output_data[ckey] = corr_pos, corr_score
         return self._output_data[ckey]
     
     def merge_greedy(self):
-        possibilities = list(itertools.product(self.im_ids, self.im_ids, [True, False], [True, False]))
+        possibilities = list(itertools.product(self.im_ids, self.im_ids, self.flips_y, self.flips_x))
         score_matrix = numpy.zeros((len(possibilities), 7))
         for p_id, a in enumerate(possibilities):
             im_i, im_j, flip_y, flip_x = a
@@ -128,7 +144,7 @@ class HDRMakerCorr:
         #(im_id, pos_y, pos_x, flip_y, flip_x)
         images = [(int(score_matrix[0][1]), 0, 0, 0, 0)]
         
-        im_shapes = dict([(k, self.get_im(k).shape) for k in self.im_ids])        
+        im_shapes = dict([(k, self.get_im(k).shape[:2]) for k in self.im_ids])        
         
         while any([x not in [y[0] for y in images] for x in self.im_ids]):
             found = False
@@ -196,7 +212,7 @@ class HDRMakerCorr:
         target_coeff = self._output_data['hdr-coeff']
         for im_list_entry in im_list:
             im_id, pos_y, pos_x, flip_y, flip_x = im_list_entry
-            im = numpy.ma.masked_invalid(self.get_im(im_id, full=True))[::{1:-1,0:1}[flip_y],::{1:-1,0:1}[flip_x]] 
+            im = numpy.ma.masked_invalid(self.get_im(im_id))[::{1:-1,0:1}[flip_y],::{1:-1,0:1}[flip_x]] 
             coeff_matrix = HDRMakerCorr.make_mask(im)
             coeff_matrix *= ~(im.mask)
             target[pos_y-min_pos_y:pos_y-min_pos_y+im.shape[0], pos_x-min_pos_x:pos_x-min_pos_x+im.shape[1]] += (im.filled(0) * coeff_matrix)
@@ -228,10 +244,13 @@ if __name__ == '__main__':
     parser.add_argument('--clean', help = 'leave only hdr data in output file', action='store_true')
     parser.add_argument('--parallel', type=int, required=False)
     parser.add_argument('--nwl', type=int, default=5, help="Number of wavelengths")
+    parser.add_argument('--wl', type=int, nargs='+', help="Wavelengths indexes")
     parser.add_argument('--psx', type=int, default=32, help="Patch size in x dimension, should be divisible by 2")
     parser.add_argument('--psy', type=int, default=32, help="Patch size in y dimension, should be divisible by 2")
     parser.add_argument('--ppx', type=float, nargs='+', default=(1/6, 1/2, 5/6), help="Patch position in x dimension")
     parser.add_argument('--ppy', type=float, nargs='+', default=(1/6, 1/2, 5/6), help="Patch position in y dimension")
+    parser.add_argument('--flipx', action='store_true', help="Flippability in x")
+    parser.add_argument('--flipy', action='store_true', help="Flippability in y")
     
     args = parser.parse_args()
     
@@ -239,12 +258,24 @@ if __name__ == '__main__':
     
     hdr = HDRMakerCorr(input_data, output_data, args)
     
+    if args.flipx:
+        flips_x = [True, False]
+    else:
+        flips_x = [False]
+        
+    if args.flipy:
+        flips_y = [True, False]
+    else:
+        flips_y = [False]    
+    
     #Match images (CPU intensive)
-    parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, [True, False], [True, False], [input_data], [output_data], [args]))
+    parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, flips_x, flips_y, [input_data], [output_data], [args]))
     
     numcpus = hics.utils.datafile.get_cpu_count(args)
     
-    
+    #import IPython
+    #IPython.embed()
+    #sys.exit(0)
     
     if numcpus == 1:
         for a in parameters_to_compute:
