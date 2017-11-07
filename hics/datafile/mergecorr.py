@@ -70,7 +70,6 @@ class HDRMakerCorr:
                             #wavelengths = numpy.argsort(scipy.ndimage.median_filter(imgvar,3))[-self.nwavelengths:]
                             
                             patch = patch[:, :, wavelengths]
-                            patch -= patch.mean(0).mean(0)[numpy.newaxis, numpy.newaxis, :]
                             
                             patches[flip_y, flip_x].append((patch, (ppy, ppx, wavelengths)))
                             
@@ -90,12 +89,11 @@ class HDRMakerCorr:
                 pos, wavelengths = pos[:2], pos[2]
                 for patch_wavelength_id, target_wavelength_id in enumerate(wavelengths):
                     target_at_wavelength = target[:, :, target_wavelength_id]
-                    target_at_wavelength -= target_at_wavelength.mean()
                     corr = skimage.feature.match_template(target_at_wavelength, patch[:, :, patch_wavelength_id])
                     corr_im[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += corr
                     corr_im_coeff[srcim.shape[0] - pos[0]:srcim.shape[0] - pos[0] +corr.shape[0], srcim.shape[1] - pos[1]:srcim.shape[1] - pos[1] +corr.shape[1]] += 1
                 
-            corr_im = numpy.ma.masked_invalid(corr_im/corr_im_coeff)
+            corr_im = numpy.ma.masked_invalid(corr_im)  #/corr_im_coeff)
             corr_pos = numpy.array(numpy.unravel_index(numpy.argmax(corr_im), corr_im.shape)) - srcim.shape[:2]
             
             #dstim_padded = numpy.ones((2*srcim.shape[0] + dstim.shape[0], 2*srcim.shape[1] + dstim.shape[1], dstim.shape[2]))*numpy.nan
@@ -272,6 +270,11 @@ if __name__ == '__main__':
     parameters_to_compute = list(itertools.product(hdr.im_ids, hdr.im_ids, flips_x, flips_y, [input_data], [output_data], [args]))
     
     numcpus = hics.utils.datafile.get_cpu_count(args)
+    
+    #hdr.get_pos_and_score(0, 0, False, False)
+    
+    #import sys
+    #sys.exit(0)
     
     #import IPython
     #IPython.embed()
