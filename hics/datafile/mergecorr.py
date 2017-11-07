@@ -90,10 +90,16 @@ class HDRMakerCorr:
             xmin = max(srcim.shape[1], corr_pos[1])
             xmax = min(srcim.shape[1]+dstim.shape[1], corr_pos[1]+srcim.shape[1])
             
+            imp1 = dstim[ymin-srcim.shape[0]:ymax-srcim.shape[0], xmin-srcim.shape[1]:xmax-srcim.shape[1]]
+            imp2 = srcim[::{True:-1,False:1}[flip_y],::{True:-1,False:1}[flip_x]][ymin-corr_pos[0]:ymax-corr_pos[0], xmin-corr_pos[1]:xmax-corr_pos[1]]
+            
             delta = numpy.ma.masked_invalid(
-                dstim[ymin-srcim.shape[0]:ymax-srcim.shape[0], xmin-srcim.shape[1]:xmax-srcim.shape[1]]-\
-                srcim[ymin-corr_pos[0]:ymax-corr_pos[0], xmin-corr_pos[1]:xmax-corr_pos[1]]
+                imp1-\
+                imp2
             )
+            
+            import IPython
+            IPython.embed()
             corr_pos_rel = corr_pos - numpy.array(srcim.shape[:2])
             corr_score = numpy.abs(delta).sum() / (~delta.mask).sum()
             self._output_data[ckey] = corr_pos_rel, corr_score
