@@ -63,6 +63,9 @@ class Record(BaseImperativePlugin):
         self._scan_velocity = int(self._redis_client.get('hics:scanner:velocity'))
         self._range_from = int(self._redis_client.get('hics:scanner:range_from'))
         self._range_to = int(self._redis_client.get('hics:scanner:range_to'))
+        self._shutter_closed_at_start = int(self._redis_client.get('hics:camera:shutter_open')) == 0
+        
+        self._record_only_dark_frames = (self._range_from == self._range_to) and self._shutter_closed_at_start
         
         self._scan_times = self._parse_list_or_range(self._input_before[5].decode('utf8'), lambda x: float(x))
         
@@ -253,14 +256,20 @@ class Record(BaseImperativePlugin):
     
                     self._redis_client.publish('hics:scanner:velocity', self._scan_velocity)
                     
-                    self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
-                                        dark_frame_count, dark_frame_count, capture_end_position = target_position,
-                                        reversed_scan = reversed_scan,
-                                        dark_frame_store_stats = dark_frame_store_stats)
+                    if not self._record_only_dark_frames:
+                        self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
+                                            dark_frame_count, dark_frame_count, capture_end_position = target_position,
+                                            reversed_scan = reversed_scan,
+                                            dark_frame_store_stats = dark_frame_store_stats)
+                    else:
+                        self._capture_frames(data, 'scan-{:05d}'.format(scan_idx), frame_shape, 
+                                                                 dark_frame_count, dark_frame_count,
+                                                                dark_frame_store_stats = dark_frame_store_stats)
                     scan_idx += 1
-
-        self._redis_client.publish('hics:camera:shutter_open', 1)
-
+        
+        if not self._shutter_closed_at_start:
+            self._redis_client.publish('hics:camera:shutter_open', 1)
+        
 
 if __name__ == '__main__':
     Record.main()
