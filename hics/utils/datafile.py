@@ -1,9 +1,16 @@
-def migrate_base_data(args, module):
+def migrate_base_data(args, module, override_input=None, override_output=None):
     import os, subprocess
     from mmappickle import mmapdict
     
-    input_data = mmapdict(args.input, True)
-    output_data = mmapdict(args.output)
+    if override_input is not None:
+        input_data = mmapdict(override_input, True)
+    else:
+        input_data = mmapdict(args.input, True)
+    
+    if override_output is not None:
+        output_data = mmapdict(override_output)
+    else:
+        output_data = mmapdict(args.output)
     output_data['description'] = input_data['description']
     output_data['wavelengths'] = input_data['wavelengths']
     if 'processing_steps' in input_data:

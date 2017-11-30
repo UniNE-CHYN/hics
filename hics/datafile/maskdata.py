@@ -11,6 +11,7 @@ if __name__ == '__main__':
     parser.add_argument('--input', help = 'input file', metavar='file.nhdr', required = True)
     parser.add_argument('--mask', help = 'mask file', metavar='mask.png', required=True)
     parser.add_argument('--output', help = 'output file', metavar='file.nmhdr', required=False)
+    parser.add_argument('--wlid', help = 'wavelength id', type=int, required=False)
     
     args = parser.parse_args()
     
@@ -18,10 +19,15 @@ if __name__ == '__main__':
     
     if args.output is None:
         input_data = mmapdict(args.input, True)
+        if args.wlid is None:
+            dispdata = numpy.ma.average(numpy.ma.masked_invalid(input_data['hdr']), 2)
+        else:
+            print(args.wlid)
+            dispdata = numpy.ma.masked_invalid(input_data['hdr'][:, :, args.wlid])
         try:
-            plt.imshow(numpy.ma.average(numpy.ma.masked_invalid(input_data['hdr']), 2)).write_png(args.mask, True)
+            plt.imshow(dispdata).write_png(args.mask, True)
         except TypeError:
-            plt.imshow(numpy.ma.average(numpy.ma.masked_invalid(input_data['hdr']), 2)).write_png(args.mask)
+            plt.imshow(dispdata).write_png(args.mask)
             
         sys.exit(0)
     
