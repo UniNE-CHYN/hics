@@ -4,6 +4,7 @@ if __name__ == '__main__':
     import argparse
     from mmappickle import mmapdict
     import numpy
+    from matplotlib import pyplot as plt
     
     parser = argparse.ArgumentParser()    
     parser.add_argument('--input', help = 'input file (hdr files)', required = True, nargs='+')
@@ -18,7 +19,9 @@ if __name__ == '__main__':
     hdrs = [numpy.ma.masked_invalid(d['hdr']) for d in data]
     
     from hscc.utils.multiregression import Multiregression
-    mr = Multiregression(hdrs[0].shape, 2, multiprocess=False)    
+    mr = Multiregression(hdrs[0].shape, 2, multiprocess=False)
+    mr_R = Multiregression(hdrs[0].shape, 1, multiprocess=False)
+    mr_T = Multiregression(hdrs[0].shape, 1, multiprocess=False)
     
     bgflist = []
     for hdr in hdrs:
@@ -28,19 +31,32 @@ if __name__ == '__main__':
         bgf = numpy.ma.ones(hdr.shape+(2, ))
         bgf[:args.pixelmargins, :, :, 0] = hdr[:args.pixelmargins, :, :]
         bgf[-args.pixelmargins:, :, :, 0] = hdr[-args.pixelmargins:, :, :]
+        
         for i in range(0, bgf.shape[0]):
             coeff = (i - args.pixelmargins / 2) / (bgf.shape[0]-args.pixelmargins)
             coeff = numpy.clip(coeff, 0, 1)
             bgf[i, :, :, 0] = (1 - coeff) * m1 + coeff * m2
         
+        
         bgflist.append(bgf)
-        mr.add_data(bgf[:, :, :, numpy.newaxis, :], hdr[..., numpy.newaxis, numpy.newaxis])
-    
+        mr.add_data(bgf[:, :, :, numpy.newaxis, :].filled(numpy.nan), hdr[..., numpy.newaxis, numpy.newaxis])
+        mr_R.add_data(bgf[:, :, :, numpy.newaxis, 1:2].filled(numpy.nan), hdr[..., numpy.newaxis, numpy.newaxis])
+        mr_T.add_data(bgf[:, :, :, numpy.newaxis, 0:1].filled(numpy.nan), hdr[..., numpy.newaxis, numpy.newaxis])
+                    
+                
     T = numpy.ma.masked_invalid(mr.beta[:,:,:,0,0])
     R = numpy.ma.masked_invalid(mr.beta[:,:,:,1,0])
     
-    T[T<0] = 0
-    R[R<0] = 0
+    del mr
+    
+    Tidx = T < 0
+    Ridx = R < 0
+    
+    R[Tidx] = mr_R.beta[..., 0, 0][Tidx]
+    T[Ridx] = mr_T.beta[..., 0, 0][Ridx]
+    
+    T[Tidx] = 0
+    R[Ridx] = 0    
     
     if args.outputtrans is not None:
         dummy_input, output = hics.utils.datafile.migrate_base_data(args, 'hics.datafile.seprefltrans', override_input=args.input[0], override_output=args.outputtrans)
