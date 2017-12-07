@@ -12,6 +12,15 @@ console.toolbox = [{'autosave': False,
                     'loc': u'/home/laurent/git/hics/hics/datafile/calibrate.py',
                     'pseudo_tty': False,
                     'raise_panel': True,
+                    'title': None},
+                   {'autosave': False,
+                    'id': 'cmd-RdoSdnqGVcvFFIG8',
+                    'io_encoding': None,
+                    'key_binding': None,
+                    'line_mode': True,
+                    'loc': u'/home/laurent/git/hics/hics/viewer/mpltest.py',
+                    'pseudo_tty': False,
+                    'raise_panel': True,
                     'title': None}]
 proj.directory-list = [{'dirloc': loc('.'),
                         'excludes': (),
@@ -50,4 +59,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/plugin/recordscan.py'): ('project',
         (u'--redis redis://130.125.10.26',
          ''))}
-proj.main-file = loc('hics/plugin/logger.py')
+proj.main-file = loc('hics/viewer/mpltest.py')
