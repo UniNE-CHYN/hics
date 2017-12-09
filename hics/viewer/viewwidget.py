@@ -1,6 +1,7 @@
 import numpy
 from PyQt5 import QtCore, QtWidgets
 from .mpl import MplCanvas
+from .mplcolorcurve import ColorCurvesWindow
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 
 class NavigationToolbarImageCanvas(NavigationToolbar2QT):
@@ -17,9 +18,7 @@ class NavigationToolbarImageCanvas(NavigationToolbar2QT):
       )
     
     def configure_subplots(self):
-        image = os.path.join(matplotlib.rcParams['datapath'], 'images', 'matplotlib.png')
-        dia = SubplotToolQt(self.canvas.figure, self.parent)
-        dia.setWindowIcon(QtGui.QIcon(image))
+        dia = ColorCurvesWindow(self.parent, self.parent.parent().hicsdataview)
         dia.exec_()
 
 
@@ -74,8 +73,11 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
     
     @hicsdataview.setter
     def hicsdataview(self, newvalue):
-        #FIXME: connect signals
+        if self._hicsdataview is not None:
+            self._hicsdataview.normChanged.disconnect(self.dataChanged)
         self._hicsdataview = newvalue
+        if self._hicsdataview is not None:
+            self._hicsdataview.normChanged.connect(self.dataChanged)
         self.dataChanged.emit()
 
 

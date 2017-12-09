@@ -37,9 +37,10 @@ class PChipNormalize(matplotlib.colors.Normalize):
         return numpy.ma.masked_array(numpy.interp(value, self._xs, self._ys), numpy.ma.getmask(value))
 
 class HicsDataView(QtCore.QObject):
-    cmapChanged = QtCore.pyqtSignal(name='cmapChanged')
+    normChanged = QtCore.pyqtSignal(name='normChanged')
     
     def __init__(self, filename, key, dimlist, dimfunctions=None, normpoints=None):
+        super().__init__()
         self._m = mmapdict(filename, True)
         self._filename = filename
         self._key = key
@@ -122,7 +123,7 @@ class HicsDataView(QtCore.QObject):
         while len(self._normpoints) < data_idx:
             self._normpoints.append([])
         self._normpoints[data_idx] = new_data
-        self.cmapChanged.emit()
+        self.normChanged.emit()
         
     def get_norm(self, data_idx):
         return PChipNormalize(self.get_normpoints(data_idx))

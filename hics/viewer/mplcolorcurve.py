@@ -1,18 +1,51 @@
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 from .mpl import MplCanvas
 import numpy
 import scipy.interpolate
+import matplotlib.cm
+
+class ColorCurvesWindow(QtWidgets.QDialog):
+    def __init__(self, parent, hdv):
+        super().__init__(parent)
+        
+        vl = QtWidgets.QVBoxLayout(self)
+        hl = QtWidgets.QHBoxLayout()
+        hl.addWidget(MplColorCurveCanvas(self, hdv, 0))
+        
+        if hdv.data_to_display.ndim == 3:
+            for i in range(1, hdv.data_to_display.shape[2]):
+                hl.addWidget(MplColorCurveCanvas(self, hdv, i))
+        vl.addLayout(hl)
+        bb = QtWidgets.QDialogButtonBox(self)
+        bb.setOrientation(QtCore.Qt.Horizontal)
+        bb.setStandardButtons(QtWidgets.QDialogButtonBox.Close|QtWidgets.QDialogButtonBox.RestoreDefaults)
+        vl.addWidget(bb)
+
+        #self.buttonBox.accepted.connect(Dialog.accept)
+        #self.buttonBox.rejected.connect(Dialog.reject)
+        #QtCore.QMetaObject.connectSlotsByName(Dialog)        
 
 class MplColorCurveCanvas(MplCanvas):
     histo_alpha = 0.5
 
-    def __init__(self, parent=None, histo=None, cmap=None, width=5, height=4, dpi=100):
-        MplCanvas.__init__(self, parent, width, height, dpi)
+    def __init__(self, parent, hdv, dim_id):
+        MplCanvas.__init__(self, parent, 5, 4, 100)
+        self._hdv = hdv
+        self._dim_id = dim_id
+        
+        if hdv.data_to_display.ndim == 2:
+            d = hdv.data_to_display
+        else:
+            d = hdv.data_to_display[:, :, self._dim_id]
+            
+        if hasattr(d, 'compressed'):
+            self._histo = numpy.histogram(d.compressed(), 100)
+        else:
+            self._histo = numpy.histogram(d.flatten(), 100)
         
         self._move_mutex = QtCore.QMutex(QtCore.QMutex.NonRecursive)
-        self._points = []
-        self._histo = histo
-        self._cmap = cmap
+        
+        self._cmap = matplotlib.cm.get_cmap('jet')
         
         self.mpl_connect('button_press_event', self.__mpl_onpress)
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
@@ -22,6 +55,23 @@ class MplColorCurveCanvas(MplCanvas):
         self._plots_update()
         self._point_moving = None
         self._dragging = False
+        
+    @property
+    def _points(self):
+        return self._hdv.get_normpoints(self._dim_id)[1:-1]
+    
+    def _point_remove(self, point):
+        d = self._hdv.get_normpoints(self._dim_id)[:]
+        d_inner = d[1:-1]
+        d_inner.remove(point)
+        self._hdv.set_normpoints(self._dim_id, [d[0]]+d_inner+[d[-1]])
+        
+    def _point_add(self, point):
+        d = self._hdv.get_normpoints(self._dim_id)[:]
+        d.append(point)
+        d.sort()
+        self._hdv.set_normpoints(self._dim_id, d)
+        
         
         
     @property
@@ -38,9 +88,9 @@ class MplColorCurveCanvas(MplCanvas):
         
         self._move_mutex.lock()
         if self._point_moving is not None:
-            self._points.remove(self._point_moving)
+            self._point_remove(self._point_moving)
         self._point_moving = event.xdata, event.ydata
-        self._points.append(self._point_moving)
+        self._point_add(self._point_moving)
         self._move_mutex.unlock()
         self._plots_update()
         
@@ -71,7 +121,7 @@ class MplColorCurveCanvas(MplCanvas):
             self._move_mutex.unlock()
         elif event.button == 3:
             if point is not None:
-                self._points.remove(point)
+                self._point_remove(point)
         else:
             print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
               ('double' if event.dblclick else 'single', event.button,
@@ -84,7 +134,7 @@ class MplColorCurveCanvas(MplCanvas):
             return
         if not self._dragging and (event.xdata is not None and event.ydata is not None):
             #We didn't drag at all, just add point
-            self._points.append((event.xdata, event.ydata))
+            self._point_add((event.xdata, event.ydata))
             self._plots_update()
         self._point_moving = None
         self._dragging = False
@@ -99,15 +149,15 @@ class MplColorCurveCanvas(MplCanvas):
         self._interpolation_plot, = self.axes.plot([0], [0], '-b')
         
     def _plots_update(self):
-        self._points.sort()
         oldx = None
-        for x, y in self._points[:]:
+        pts = self._points[:]
+        for x, y in pts:
             if oldx == x:
-                self._points.remove((x, y))
+                pts.remove((x, y))
             oldx = x
         
-        xi = [x[0] for x in self._points]
-        yi = [x[1] for x in self._points]
+        xi = [x[0] for x in pts]
+        yi = [x[1] for x in pts]
         
         if self._histo is not None:
             xi.insert(0, self._histo[1].min())
