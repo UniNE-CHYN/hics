@@ -58,5 +58,8 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
          '')),
                       loc('hics/plugin/recordscan.py'): ('project',
         (u'--redis redis://130.125.10.26',
+         '')),
+                      loc('hics/viewer/mainwindow.py'): ('project',
+        (u'/data/scans/notice_rdf.calibrated',
          ''))}
-proj.main-file = loc('hics/viewer/mpltest.py')
+proj.main-file = loc('hics/viewer/mainwindow.py')

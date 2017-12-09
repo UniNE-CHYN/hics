@@ -273,9 +273,13 @@ if __name__ == '__main__':
             import numpy
             data = numpy.random.rand(10000)
             histdata = numpy.histogram(data, 100)
+            
+            import matplotlib.cm
+            from matplotlib.colors import LinearSegmentedColormap
+            redcm = LinearSegmentedColormap.from_list('_redcm', [(0, 0, 0), (1, 0, 0)])
     
             l = QtWidgets.QVBoxLayout(self.main_widget)
-            cc = MplColorCurveCanvas(self.main_widget, histo=histdata, cmap= matplotlib.cm.get_cmap('jet'))
+            cc = MplColorCurveCanvas(self.main_widget, histo=histdata, cmap=redcm)  # matplotlib.cm.get_cmap('jet'))
             l.addWidget(cc)
     
             self.main_widget.setFocus()

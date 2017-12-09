@@ -132,8 +132,7 @@ class MplColorCurveCanvas(MplCanvas):
         if self._histo is not None and self._cmap is not None:
             hist, bins = self._histo
             centers = (bins[:-1] + bins[1:]) / 2
-            import matplotlib.cm
-            from matplotlib.colors import LinearSegmentedColormap
+            
             #static from_list(name, colors, N=256, gamma=1.0)
             centers_values = numpy.clip(scipy.interpolate.pchip_interpolate(xi, yi, centers), 0, 1)
             for b_id, c in enumerate(centers_values):
