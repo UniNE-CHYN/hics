@@ -1,7 +1,8 @@
 import numpy
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from .mpl import MplCanvas
 from .mplcolorcurve import ColorCurvesWindow
+import matplotlib
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 
 class NavigationToolbarImageCanvas(NavigationToolbar2QT):
@@ -16,6 +17,7 @@ class NavigationToolbarImageCanvas(NavigationToolbar2QT):
         ('Colormap', 'Configure colormap', 'subplots', 'configure_cmap'),
         (None, None, None, None),
         ('Save', 'Save the figure', 'filesave', 'save_figure'),
+        (None, None, None, None),
       )
     
     def configure_cmap(self):
@@ -26,13 +28,46 @@ class NavigationToolbarImageCanvas(NavigationToolbar2QT):
         dia.exec_()
 
 
+
 class ImageCanvas(MplCanvas):
     _labels = {'x': 'x [px]', 'y': 'y [px]', 'l': '$\lambda$ [nm]'}
     def __init__(self, parent):
         super().__init__(parent)
         self.toolbar = NavigationToolbarImageCanvas(self, self)
         self._image = self.axes.imshow([[numpy.nan]], aspect='auto', interpolation = 'none')
+        self._popmenu = QtWidgets.QMenu(self)
         
+        self.mpl_connect('button_release_event', self.__mpl_onrelease)
+        self.mpl_connect('motion_notify_event', self.__mpl_onmousemove)
+        
+        self._points = {}
+        self._current_mouse_position = None
+        
+    def __mpl_onrelease(self, event):
+        if event.button == 3:  #right click
+            self._popmenu.clear()
+            
+            dpa = self.parent().data_point_available
+            
+            if dpa is not None:
+                action = self._popmenu.addAction("Add point")
+                action.triggered.connect(lambda v: self.parent().data_point_set(dpa, (event.xdata, event.ydata)))
+            
+            pdists = [(k, (event.xdata - v[0]) ** 2 + (event.ydata - v[1]) ** 2) for k, v in self.parent().data_points.items() if v is not None]
+            if len(pdists) > 0:
+                nearest = pdists[numpy.argmin([x[1] for x in pdists])][0]
+                action = self._popmenu.addAction("Remove nearest point")
+                action.triggered.connect(lambda v: self.parent().data_point_set(nearest, None))
+
+            
+            self._popmenu.exec_(QtGui.QCursor().pos())
+            
+    def __mpl_onmousemove(self, event):
+        try:
+            self._current_mouse_position = (int(event.xdata), int(event.ydata))
+        except:
+            self._current_mouse_position = None
+            
     def show_data(self):
         if self.parent().hicsdataview is None:
             self._image.set_data([[numpy.nan]])
@@ -57,20 +92,147 @@ class ImageCanvas(MplCanvas):
             self.axes.set_xlabel(self._labels.get(ax1, ax1))
             self.axes.set_ylabel(self._labels.get(ax0, ax0))
         
-            self._image.set_extent(hdv.get_ax_extent(ax1) + hdv.get_ax_extent(ax0)[::-1])            
+            self._image.set_extent(hdv.get_ax_extent(ax1) + hdv.get_ax_extent(ax0)[::-1])
+            self.axes.set_xlim(*hdv.get_ax_extent(ax1))
+            self.axes.set_ylim(*hdv.get_ax_extent(ax0))
             
+        self.draw()
+        
+    def show_points(self):
+        for k, v in self.parent().data_points.items():
+            if v is None:
+                v = numpy.nan, numpy.nan
+            if k not in self._points:
+                self._points[k], = self.axes.plot([v[0]], [v[1]], '+', color=k)
+            else:
+                self._points[k].set_data([v[0]], [v[1]])
+        
+        self.draw()
+        
+class DataCanvas(MplCanvas):
+    _labels = {'x': 'x [px]', 'y': 'y [px]', 'l': '$\lambda$ [nm]'}
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._plots = {}
+        self._current_mouse_position = None
+        
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self._check_if_mouse_position_changed)
+        timer.start(1000/25)
+        
+    def _check_if_mouse_position_changed(self):
+        im_position = self.parent()._canvas_image._current_mouse_position
+        if im_position != self._current_mouse_position:
+            self._current_mouse_position = im_position
+            self.show_data(True)
+        
+    def show_data(self, only_current=False):
+        hdv = self.parent()._hicsdataview
+        if hdv is None:
+            return
+        axt = hdv.data_at_axes[0]
+        
+        items = [(None, self._current_mouse_position)]
+        
+        if not only_current:
+            items += list(self.parent().data_points.items())
+                
+        for k, v in items:
+            ydata = None
+            vdata = None
+            if v is not None:
+                ydata = hdv.data_at(*v)
+            
+            if ydata is not None and ydata.ndim != 1:
+                ydata = None
+                
+            if ydata is not None:
+                if axt == 'l':
+                    xdata = hdv.wavelengths
+                    #FIXME: classification etc.
+                else:
+                    xdata = numpy.arange(0, len(ydata))
+                    
+                vdata = hdv.var_at(*v)
+                if vdata is not None:
+                    vdata = numpy.sqrt(vdata)
+            
+            else:  # ydata is None:
+                xdata = [numpy.nan]
+                ydata = [numpy.nan]
+                
+            if vdata is None:
+                vdata = numpy.nan
+                
+            xdata = numpy.array(xdata)
+            ydata = numpy.array(ydata)
+            ydataP = ydata + vdata
+            ydataM = ydata - vdata
+
+            if k not in self._plots:
+                if k is None:
+                    zorder = 10
+                    color = 'k'
+                else:
+                    zorder = 0
+                    color = k
+                
+                self._plots[k] = [
+                    self.axes.plot(xdata, ydata, color=color, zorder=zorder)[0],
+                    self.axes.plot(xdata, ydataP, '--', color=color, zorder=zorder)[0],
+                    self.axes.plot(xdata, ydataM, '--', color=color, zorder=zorder)[0]
+                ]
+            else:
+                self._plots[k][0].set_data(xdata, ydata)
+                self._plots[k][1].set_data(xdata, ydataP)
+                self._plots[k][2].set_data(xdata, ydataM)
+                
+        self.axes.relim()
+        self.axes.set_xlim(self.axes.dataLim.x0, self.axes.dataLim.x1)
+        self.axes.set_ylim(self.axes.dataLim.y0, self.axes.dataLim.y1)
         self.draw()
         
 class HicsDataViewWidget(QtWidgets.QSplitter):
     dataChanged = QtCore.pyqtSignal(name='dataChanged')
+    dataPointsChanged = QtCore.pyqtSignal(name='dataPointsChanged')
+    
     def __init__(self, parent=None):
         super().__init__(QtCore.Qt.Vertical, parent)
+        
+        self._data_points = dict([(x, None) for x in  matplotlib.rcParams['axes.prop_cycle'].by_key()['color']])
+        
         self._canvas_image = ImageCanvas(self)
+        self._canvas_data = DataCanvas(self)
         
         self.insertWidget(0, self._canvas_image)
+        self.insertWidget(1, self._canvas_data)
+        
         self._hicsdataview = None
         
         self.dataChanged.connect(self._canvas_image.show_data)
+        self.dataChanged.connect(self._canvas_data.show_data)
+        self.dataPointsChanged.connect(self._canvas_image.show_points)
+        self.dataPointsChanged.connect(self._canvas_data.show_data)
+        
+    @property
+    def data_point_available(self):
+        for k, v in self._data_points.items():
+            if v is None:
+                return k
+        return None
+    
+    def data_point_set(self, k, v, *a):
+        assert k in self._data_points
+        if v is None:
+            self._data_points[k] = v
+        else:
+            self._data_points[k] = int(v[0]), int(v[1])
+        self.dataPointsChanged.emit()
+        
+    @property
+    def data_points(self):
+        return self._data_points.copy()
+
         
     @property
     def hicsdataview(self):

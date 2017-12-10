@@ -57,6 +57,10 @@ class HicsDataView(QtCore.QObject):
     
         assert all(x in ('x', 'y', 'l', 'exp', 'abundance') for x in self._dimlist)
         self._data = self._m[self._key]
+        if self._key + '-var' in self._m.keys():
+            self._var = self._m[self._key+'-var']
+        else:
+            self._var = None
                 
         self._normpoints = normpoints    
         if normpoints is None:
@@ -78,13 +82,6 @@ class HicsDataView(QtCore.QObject):
                     self._normpoints.append([(0, 0), (1, 1)])
                 else:
                     self._normpoints.append([(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)])        
-        
-        
-
-        print(self.data_to_display.shape)
-        print(self.data_to_display_axes)
-        print(self.data_at_axes)
-        print('x')
 
     @property
     def data_to_display(self):
@@ -129,6 +126,13 @@ class HicsDataView(QtCore.QObject):
     def data_at(self, x, y):
         indexes = [{'x': x, 'y': y}.get(k, slice(None, None)) for k in self._dimlist]
         return self._data[indexes]
+    
+    def var_at(self, x, y):
+        indexes = [{'x': x, 'y': y}.get(k, slice(None, None)) for k in self._dimlist]
+        if self._var is None:
+            return None
+        else:
+            return self._var[indexes]
     
     def get_normpoints(self, data_idx):
         while len(self._normpoints) < data_idx:
