@@ -19,6 +19,9 @@ class NavigationToolbarImageCanvas(NavigationToolbar2QT):
       )
     
     def configure_cmap(self):
+        #Only possible if we have data...
+        if self.parent.parent().hicsdataview is None:
+            return
         dia = ColorCurvesWindow(self.parent, self.parent.parent().hicsdataview)
         dia.exec_()
 
@@ -45,7 +48,9 @@ class ImageCanvas(MplCanvas):
                 data_norm = numpy.ma.zeros((data.shape[0], data.shape[1], numpy.clip(data.shape[2], 3, 4)))
                 for d in range(data.shape[2]):
                     data_norm[:, :, d] = hdv.get_norm(d)(data[:, :, d])
-                self._image.set_data(data_norm)
+                #RGB images don't support masked values, so fill...
+                #FIXME: (make empty pixels white?)
+                self._image.set_data(data_norm.filled(0.))
             
             ax0, ax1 = hdv.data_to_display_axes
         

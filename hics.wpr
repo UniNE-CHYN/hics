@@ -59,7 +59,10 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/plugin/recordscan.py'): ('project',
         (u'--redis redis://130.125.10.26',
          '')),
+                      loc('hics/viewer/__main__.py'): ('project',
+        (u'/mnt/hyspec_gallery/20170828_OpalinusCore/20170828144924.nmhdr',
+         '')),
                       loc('hics/viewer/mainwindow.py'): ('project',
         (u'/data/scans/notice_rdf.calibrated',
          ''))}
-proj.main-file = loc('hics/viewer/mainwindow.py')
+proj.main-file = loc('hics/viewer/__main__.py')

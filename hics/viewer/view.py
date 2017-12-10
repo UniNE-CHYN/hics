@@ -74,7 +74,10 @@ class HicsDataView(QtCore.QObject):
                 else:
                     dimdata = dimdata.flatten()
                 
-                self._normpoints.append([(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)])        
+                if len(dimdata) == 0:
+                    self._normpoints.append([(0, 0), (1, 1)])
+                else:
+                    self._normpoints.append([(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)])        
         
         
 
@@ -86,11 +89,24 @@ class HicsDataView(QtCore.QObject):
     @property
     def data_to_display(self):
         indexes = [{None: slice(None, None), 'mean': slice(None, None), 'median': slice(None, None)}.get(k, k) for k in self._dimfunctions]
-        d = self._data[indexes]
+        d = self._data
         for f_id, f in reversed(list(enumerate(self._dimfunctions))):
-            if type(f) != str:
+            if type(f) == None:
                 continue
-            d = getattr(d, f)(f_id)
+            elif type(f) == tuple:
+                new_shape = list(d.shape)
+                new_shape[f_id] = len(f)
+                new_d = numpy.ma.masked_all(new_shape)
+                for new_idx, old_idx in enumerate(f):
+                    if old_idx is None:
+                        continue
+                    old_idx_full = [slice(None, None)] * f_id + [old_idx] + [Ellipsis]
+                    new_idx_full = [slice(None, None)] * f_id + [new_idx] + [Ellipsis]
+                    new_d[new_idx_full] = d[old_idx_full]
+                
+                d = new_d
+            elif type(f) == str:
+                d = getattr(d, f)(f_id)
         return d
     
     @property

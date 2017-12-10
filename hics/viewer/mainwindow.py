@@ -145,7 +145,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             print(type(data))
             return
             
-        self._view_widget.hicsdataview = HicsDataView(self._f, self._current_key, dims, [None, None, (5, 120, 230)])
+        self._view_widget.hicsdataview = HicsDataView(self._f, self._current_key, dims, [None, None, (None, 120, 230)])
         
             
     def fileQuit(self):
@@ -154,10 +154,3 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def closeEvent(self, ce):
         self.fileQuit()
 
-if __name__ == '__main__':
-    import sys
-    qApp = QtWidgets.QApplication(sys.argv)
-    
-    aw = ApplicationWindow(sys.argv[1])
-    aw.show()
-    sys.exit(qApp.exec_())

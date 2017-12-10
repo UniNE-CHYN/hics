@@ -3,6 +3,7 @@ from .mpl import MplCanvas
 import numpy
 import scipy.interpolate
 import matplotlib.cm
+import matplotlib.colors
 
 class ColorCurvesWindow(QtWidgets.QDialog):
     def __init__(self, parent, hdv):
@@ -16,17 +17,30 @@ class ColorCurvesWindow(QtWidgets.QDialog):
             for i in range(1, hdv.data_to_display.shape[2]):
                 hl.addWidget(MplColorCurveCanvas(self, hdv, i))
         vl.addLayout(hl)
-        bb = QtWidgets.QDialogButtonBox(self)
-        bb.setOrientation(QtCore.Qt.Horizontal)
-        bb.setStandardButtons(QtWidgets.QDialogButtonBox.Close|QtWidgets.QDialogButtonBox.RestoreDefaults)
-        vl.addWidget(bb)
+        self._bb = QtWidgets.QDialogButtonBox(self)
+        self._bb.setOrientation(QtCore.Qt.Horizontal)
+        self._bb.setStandardButtons(QtWidgets.QDialogButtonBox.Close|QtWidgets.QDialogButtonBox.RestoreDefaults)
+        vl.addWidget(self._bb)
 
+        self._bb.clicked.connect(self.buttonClicked)
         #self.buttonBox.accepted.connect(Dialog.accept)
         #self.buttonBox.rejected.connect(Dialog.reject)
-        #QtCore.QMetaObject.connectSlotsByName(Dialog)        
+        #QtCore.QMetaObject.connectSlotsByName(Dialog)
+        
+    def buttonClicked(self, button):
+        if self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.ResetRole:
+            #restore defaults
+            pass
+        elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.RejectRole:
+            self.close()
 
 class MplColorCurveCanvas(MplCanvas):
     histo_alpha = 0.5
+    _rgb_cmaps = [
+        matplotlib.colors.LinearSegmentedColormap.from_list('_red', [(0, 0, 0), (1, 0, 0)], 256),
+        matplotlib.colors.LinearSegmentedColormap.from_list('_green', [(0, 0, 0), (0, 1, 0)], 256),
+        matplotlib.colors.LinearSegmentedColormap.from_list('_blue', [(0, 0, 0), (0, 0, 1)], 256), 
+    ]
 
     def __init__(self, parent, hdv, dim_id):
         MplCanvas.__init__(self, parent, 5, 4, 100)
@@ -45,7 +59,10 @@ class MplColorCurveCanvas(MplCanvas):
         
         self._move_mutex = QtCore.QMutex(QtCore.QMutex.NonRecursive)
         
-        self._cmap = hdv.cm
+        if hdv.data_to_display.ndim == 2 or (hdv.data_to_display.ndim == 3 and hdv.data_to_display.shape[2] == 1):
+            self._cmap = hdv.cm
+        else:
+            self._cmap = self._rgb_cmaps[self._dim_id]
         
         self.mpl_connect('button_press_event', self.__mpl_onpress)
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
