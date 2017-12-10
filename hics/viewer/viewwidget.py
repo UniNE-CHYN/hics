@@ -12,12 +12,13 @@ class NavigationToolbarImageCanvas(NavigationToolbar2QT):
         (None, None, None, None),
         ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
         ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
-        ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
+        #('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
+        ('Colormap', 'Configure colormap', 'subplots', 'configure_cmap'),
         (None, None, None, None),
         ('Save', 'Save the figure', 'filesave', 'save_figure'),
       )
     
-    def configure_subplots(self):
+    def configure_cmap(self):
         dia = ColorCurvesWindow(self.parent, self.parent.parent().hicsdataview)
         dia.exec_()
 
@@ -39,13 +40,12 @@ class ImageCanvas(MplCanvas):
             if data.ndim == 2:
                 self._image.set_data(data)
                 self._image.set_norm(hdv.get_norm(0))
-                self._image.set_cmap('gray')
+                self._image.set_cmap(hdv.cm)
             else:
-                #FIXME
                 data_norm = numpy.ma.zeros((data.shape[0], data.shape[1], numpy.clip(data.shape[2], 3, 4)))
                 for d in range(data.shape[2]):
                     data_norm[:, :, d] = hdv.get_norm(d)(data[:, :, d])
-                self._image.set_data(data)
+                self._image.set_data(data_norm)
             
             ax0, ax1 = hdv.data_to_display_axes
         

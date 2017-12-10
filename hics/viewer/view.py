@@ -67,7 +67,7 @@ class HicsDataView(QtCore.QObject):
             
             self._normpoints = []
             for dim_id in range(vd.shape[2]):
-                dimdata = vd[dim_id]
+                dimdata = vd[:, :, dim_id]
                 
                 if hasattr(dimdata, 'compressed'):
                     dimdata = dimdata.compressed()
@@ -127,3 +127,7 @@ class HicsDataView(QtCore.QObject):
         
     def get_norm(self, data_idx):
         return PChipNormalize(self.get_normpoints(data_idx))
+    
+    @property
+    def cm(self):
+        return matplotlib.cm.get_cmap('jet')

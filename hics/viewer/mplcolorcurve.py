@@ -45,7 +45,7 @@ class MplColorCurveCanvas(MplCanvas):
         
         self._move_mutex = QtCore.QMutex(QtCore.QMutex.NonRecursive)
         
-        self._cmap = matplotlib.cm.get_cmap('jet')
+        self._cmap = hdv.cm
         
         self.mpl_connect('button_press_event', self.__mpl_onpress)
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
@@ -58,7 +58,7 @@ class MplColorCurveCanvas(MplCanvas):
         
     @property
     def _points(self):
-        return self._hdv.get_normpoints(self._dim_id)[1:-1]
+        return self._hdv.get_normpoints(self._dim_id)
     
     def _point_remove(self, point):
         d = self._hdv.get_normpoints(self._dim_id)[:]
@@ -97,7 +97,7 @@ class MplColorCurveCanvas(MplCanvas):
     def _find_nearest_point(self, xdata, ydata):
         point = None
         delta = None
-        for x, y in self._points:
+        for x, y in self._points[1:-1]:
             this_delta = numpy.sqrt((xdata-x) **2+(ydata-y) **2)
             if delta is None or this_delta < delta:
                 point = x, y
@@ -158,12 +158,6 @@ class MplColorCurveCanvas(MplCanvas):
         
         xi = [x[0] for x in pts]
         yi = [x[1] for x in pts]
-        
-        if self._histo is not None:
-            xi.insert(0, self._histo[1].min())
-            xi.append(self._histo[1].max())
-            yi.insert(0, 0)
-            yi.append(1)
             
         self._point_plot.set_data(xi, yi)
         
