@@ -37,7 +37,7 @@ class PChipNormalize(matplotlib.colors.Normalize):
         return numpy.ma.masked_array(numpy.interp(value, self._xs, self._ys), numpy.ma.getmask(value))
 
 class HicsDataView(QtCore.QObject):
-    normChanged = QtCore.pyqtSignal(name='normChanged')
+    viewChanged = QtCore.pyqtSignal(name='viewChanged')
     
     def __init__(self, filename, key, dimlist, dimfunctions=None, normpoints=None):
         super().__init__()
@@ -62,27 +62,10 @@ class HicsDataView(QtCore.QObject):
         else:
             self._var = None
                 
-        self._normpoints = normpoints    
-        if normpoints is None:
-            vd = self.data_to_display
-            if vd.ndim == 2:
-                vd = vd[:, :, numpy.newaxis]
-            assert vd.ndim == 3
-            
+        self._normpoints = normpoints
+        if self._normpoints is None:
             self._normpoints = []
-            for dim_id in range(vd.shape[2]):
-                dimdata = vd[:, :, dim_id]
-                
-                if hasattr(dimdata, 'compressed'):
-                    dimdata = dimdata.compressed()
-                else:
-                    dimdata = dimdata.flatten()
-                
-                if len(dimdata) == 0:
-                    self._normpoints.append([(0, 0), (1, 1)])
-                else:
-                    self._normpoints.append([(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)])        
-
+            
     @property
     def data_to_display(self):
         indexes = [{None: slice(None, None), 'mean': slice(None, None), 'median': slice(None, None)}.get(k, k) for k in self._dimfunctions]
@@ -135,15 +118,34 @@ class HicsDataView(QtCore.QObject):
             return self._var[indexes]
     
     def get_normpoints(self, data_idx):
-        while len(self._normpoints) < data_idx:
+        while len(self._normpoints) < data_idx + 1:
             self._normpoints.append([])
+            
+        if len(self._normpoints[data_idx]) == 0:
+            vd = self.data_to_display
+            if vd.ndim == 2:
+                assert data_idx == 0
+                vd = vd[:, :, numpy.newaxis]
+            assert vd.ndim == 3
+            
+            dimdata = vd[:, :, data_idx]
+            
+            if hasattr(dimdata, 'compressed'):
+                dimdata = dimdata.compressed()
+            else:
+                dimdata = dimdata.flatten()
+            
+            if len(dimdata) == 0:
+                self._normpoints[data_idx] = [(0, 0), (1, 1)]
+            else:
+                self._normpoints[data_idx] = [(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)]
         return self._normpoints[data_idx]
     
     def set_normpoints(self, data_idx, new_data):
-        while len(self._normpoints) < data_idx:
+        while len(self._normpoints) < data_idx + 1:
             self._normpoints.append([])
         self._normpoints[data_idx] = new_data
-        self.normChanged.emit()
+        self.viewChanged.emit()
         
     def get_norm(self, data_idx):
         return PChipNormalize(self.get_normpoints(data_idx))
@@ -151,3 +153,23 @@ class HicsDataView(QtCore.QObject):
     @property
     def cm(self):
         return matplotlib.cm.get_cmap('jet')
+    
+    @property
+    def lastdim(self):
+        return [dim_id for dim_id, k in enumerate(self._dimlist) if k not in ['x', 'y']][-1]
+        
+    def set_dataindex(self, color_index, matrix_index):
+        if type(self._dimfunctions[self.lastdim]) != tuple:
+            self._dimfunctions[self.lastdim] = (None, None, None)
+        
+        df = list(self._dimfunctions[self.lastdim])
+        #FIXME: Save normalization
+        df[color_index] = matrix_index
+        df = tuple(df)
+        if df == (None, None, None):
+            df = 'mean'
+        #FIXME: Restore normalization (or create a new one)
+        
+        self._dimfunctions[self.lastdim] = df
+        self.viewChanged.emit()
+        

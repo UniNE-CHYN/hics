@@ -116,9 +116,17 @@ class DataCanvas(MplCanvas):
         self._plots = {}
         self._current_mouse_position = None
         
+        self.mpl_connect('button_release_event', self.__mpl_onrelease)
+        
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self._check_if_mouse_position_changed)
         timer.start(1000/25)
+        
+    def __mpl_onrelease(self, event):
+        if event.button == 3:  #right click
+            hdv = self.parent()._hicsdataview
+            hdv.set_dataindex(0, numpy.random.randint(0, 255))
+                
         
     def _check_if_mouse_position_changed(self):
         im_position = self.parent()._canvas_image._current_mouse_position
@@ -241,10 +249,10 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
     @hicsdataview.setter
     def hicsdataview(self, newvalue):
         if self._hicsdataview is not None:
-            self._hicsdataview.normChanged.disconnect(self.dataChanged)
+            self._hicsdataview.viewChanged.disconnect(self.dataChanged)
         self._hicsdataview = newvalue
         if self._hicsdataview is not None:
-            self._hicsdataview.normChanged.connect(self.dataChanged)
+            self._hicsdataview.viewChanged.connect(self.dataChanged)
         self.dataChanged.emit()
 
 

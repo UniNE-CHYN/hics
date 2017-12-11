@@ -9,6 +9,8 @@ class ColorCurvesWindow(QtWidgets.QDialog):
     def __init__(self, parent, hdv):
         super().__init__(parent)
         
+        self._hdv = hdv
+        
         vl = QtWidgets.QVBoxLayout(self)
         hl = QtWidgets.QHBoxLayout()
         hl.addWidget(MplColorCurveCanvas(self, hdv, 0))
@@ -30,7 +32,11 @@ class ColorCurvesWindow(QtWidgets.QDialog):
     def buttonClicked(self, button):
         if self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.ResetRole:
             #restore defaults
-            pass
+            self._hdv.set_normpoints(0, [])
+            
+            if self._hdv.data_to_display.ndim == 3:
+                for i in range(1, self._hdv.data_to_display.shape[2]):
+                    self._hdv.set_normpoints(1, [])
         elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.RejectRole:
             self.close()
 
@@ -72,6 +78,8 @@ class MplColorCurveCanvas(MplCanvas):
         self._plots_update()
         self._point_moving = None
         self._dragging = False
+        
+        hdv.viewChanged.connect(self._plots_update)
         
     @property
     def _points(self):

@@ -145,7 +145,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             print(type(data))
             return
             
-        self._view_widget.hicsdataview = HicsDataView(self._f, self._current_key, dims, [None, None, (None, 120, 230)])
+        self._view_widget.hicsdataview = HicsDataView(self._f, self._current_key, dims)
         
             
     def fileQuit(self):
