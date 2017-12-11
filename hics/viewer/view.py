@@ -157,6 +157,15 @@ class HicsDataView(QtCore.QObject):
     @property
     def lastdim(self):
         return [dim_id for dim_id, k in enumerate(self._dimlist) if k not in ['x', 'y']][-1]
+    
+    def get_dataindex(self, color_index):
+        if type(self._dimfunctions[self.lastdim]) != tuple:
+            return None
+        
+        if color_index < len(self._dimfunctions[self.lastdim]):
+            return self._dimfunctions[self.lastdim][color_index]
+        
+        return None
         
     def set_dataindex(self, color_index, matrix_index):
         if type(self._dimfunctions[self.lastdim]) != tuple:

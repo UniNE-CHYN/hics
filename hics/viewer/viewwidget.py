@@ -115,6 +115,9 @@ class DataCanvas(MplCanvas):
         super().__init__(parent)
         self._plots = {}
         self._current_mouse_position = None
+        self._popmenu = QtWidgets.QMenu(self)
+        
+        self._vlines = {}
         
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
         
@@ -122,10 +125,38 @@ class DataCanvas(MplCanvas):
         timer.timeout.connect(self._check_if_mouse_position_changed)
         timer.start(1000/25)
         
+
+        
     def __mpl_onrelease(self, event):
         if event.button == 3:  #right click
             hdv = self.parent()._hicsdataview
-            hdv.set_dataindex(0, numpy.random.randint(0, 255))
+            
+            self._popmenu.clear()
+            
+            xidx = numpy.argmin(numpy.abs(event.xdata-hdv.wavelengths))
+            
+            action = self._popmenu.addAction("Set red")
+            action.triggered.connect(lambda v: hdv.set_dataindex(0, xidx))
+            
+            action = self._popmenu.addAction("Set green")
+            action.triggered.connect(lambda v: hdv.set_dataindex(1, xidx))
+            
+            action = self._popmenu.addAction("Set blue")
+            action.triggered.connect(lambda v: hdv.set_dataindex(2, xidx))     
+                
+            action = self._popmenu.addAction("Clear red")
+            action.triggered.connect(lambda v: hdv.set_dataindex(0, None))
+        
+            action = self._popmenu.addAction("Clear green")
+            action.triggered.connect(lambda v: hdv.set_dataindex(1, None))
+        
+            action = self._popmenu.addAction("Clear blue")
+            action.triggered.connect(lambda v: hdv.set_dataindex(2, None))  
+
+            
+            self._popmenu.exec_(QtGui.QCursor().pos())
+            
+            
                 
         
     def _check_if_mouse_position_changed(self):
@@ -195,9 +226,24 @@ class DataCanvas(MplCanvas):
                 self._plots[k][1].set_data(xdata, ydataP)
                 self._plots[k][2].set_data(xdata, ydataM)
                 
+        for i in range(3):
+            idx = hdv.get_dataindex(i)
+            color = 'rgb'[i]
+            if i in self._vlines:
+                self.axes.lines.remove(self._vlines[i])
+                del self._vlines[i]
+            if idx is None:
+                continue
+            if axt == 'l':
+                idx = hdv.wavelengths[idx]
+            self._vlines[i] = self.axes.axvline(idx, color=color)
+            
+                
         self.axes.relim()
-        self.axes.set_xlim(self.axes.dataLim.x0, self.axes.dataLim.x1)
-        self.axes.set_ylim(self.axes.dataLim.y0, self.axes.dataLim.y1)
+        if self.axes.dataLim.x0 != self.axes.dataLim.x1:
+            self.axes.set_xlim(self.axes.dataLim.x0, self.axes.dataLim.x1)
+        if self.axes.dataLim.y0 != self.axes.dataLim.y1:
+            self.axes.set_ylim(self.axes.dataLim.y0, self.axes.dataLim.y1)
         self.draw()
         
 class HicsDataViewWidget(QtWidgets.QSplitter):

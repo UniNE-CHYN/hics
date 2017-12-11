@@ -36,7 +36,7 @@ class ColorCurvesWindow(QtWidgets.QDialog):
             
             if self._hdv.data_to_display.ndim == 3:
                 for i in range(1, self._hdv.data_to_display.shape[2]):
-                    self._hdv.set_normpoints(1, [])
+                    self._hdv.set_normpoints(i, [])
         elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.RejectRole:
             self.close()
 
