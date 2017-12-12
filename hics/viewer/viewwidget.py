@@ -47,7 +47,8 @@ class ImageCanvas(MplCanvas):
         self.__redraw_required = False
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.__check_if_redraw_needed)
-        timer.start(1000/25)        
+        timer.start(1000/25)
+        
         
     def __mpl_onrelease(self, event):
         if event.button == 3:  #right click
@@ -56,12 +57,18 @@ class ImageCanvas(MplCanvas):
             dpa = self.parent().data_point_available
             hdv = self.parent().hicsdataview
             
-            #FIXME: use real axis instead of x and y
             if dpa is not None:
                 action = self._popmenu.addAction("Add point")
-                action.triggered.connect(lambda v: hdv.display_points_set(dpa, {'x': event.xdata, 'y': event.ydata}))
+                action.triggered.connect(lambda v: hdv.display_points_set(dpa, {hdv.spatial_axes[1]: event.xdata, hdv.spatial_axes[0]: event.ydata}))
             
-            pdists = [(k, (event.xdata - v['x']) ** 2 + (event.ydata - v['y']) ** 2) for k, v in hdv.display_points.items() if v is not None]
+            def _pdist_comp(p1, p2):
+                acc = 0
+                for k in p1.keys():
+                    if k in p2.keys():
+                        acc += (p1[k] - p2[k]) ** 2
+                return numpy.sqrt(acc)
+            
+            pdists = [(k, _pdist_comp({hdv.spatial_axes[1]: event.xdata, hdv.spatial_axes[0]: event.ydata}, v)) for k, v in hdv.display_points.items() if v is not None]
             if len(pdists) > 0:
                 nearest = pdists[numpy.argmin([x[1] for x in pdists])][0]
                 action = self._popmenu.addAction("Remove nearest point")
@@ -72,7 +79,7 @@ class ImageCanvas(MplCanvas):
             
     def __mpl_onmousemove(self, event):
         try:
-            self._current_mouse_position = (int(event.xdata), int(event.ydata))
+            self._current_mouse_position = (event.xdata, event.ydata)
         except:
             self._current_mouse_position = None
             
@@ -116,14 +123,14 @@ class ImageCanvas(MplCanvas):
         
     def show_points(self):
         hdv = self.parent()._hicsdataview
-        #FIXME: use real data axis instead of hardcoded x and y
         for k, v in hdv.display_points.items():
-            if v is None:
-                v = {'x': numpy.nan, 'y': numpy.nan}
+            #FIXME: we could do a hline/vline when one of the dimensions is not defined
+            if v is None or hdv.spatial_axes[1] not in v or hdv.spatial_axes[0] not in v:
+                v = {hdv.spatial_axes[1]: numpy.nan, hdv.spatial_axes[0]: numpy.nan}
             if k not in self._points:
-                self._points[k], = self.axes.plot([v['x']], [v['y']], '+', color=k)
+                self._points[k], = self.axes.plot([v[hdv.spatial_axes[1]]], [v[hdv.spatial_axes[0]]], '+', color=k)
             else:
-                self._points[k].set_data([v['x']], [v['y']])
+                self._points[k].set_data([v[hdv.spatial_axes[1]]], [v[hdv.spatial_axes[0]]])
         
         self.draw()
         
@@ -189,11 +196,10 @@ class DataCanvas(MplCanvas):
             return
         
         xaxis = hdv.data_axis
-        #FIXME: replace x/y by real axes
-        if self._current_mouse_position is None:
+        if self._current_mouse_position is None or self._current_mouse_position[0] is None or self._current_mouse_position[1] is None:
             items = [(None, None)]
         else:
-            items = [(None, {'x': self._current_mouse_position[0], 'y': self._current_mouse_position[1]})]
+            items = [(None, {hdv.spatial_axes[1]: self._current_mouse_position[0], hdv.spatial_axes[0]: self._current_mouse_position[1]})]
         
         if not only_current:
             items += list(hdv.display_points.items())

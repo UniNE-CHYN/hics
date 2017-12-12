@@ -71,24 +71,46 @@ class HicsData(QtCore.QObject):
     
     def get_ticks(self, axis):
         if axis == 'l':
-            return self._m['wavelengths']
+            return numpy.array(self._m['wavelengths'])
         #FIXME: other special cases?
         return numpy.arange(self._data.shape[self._dimensions_list.index(axis)])
             
     def __at(self, data_coordinates=None, return_axes_order=None, on='_data'):
         if data_coordinates is None:
             data_coordinates = {}
+        else:
+            data_coordinates = data_coordinates.copy()
+            
+        for k in list(data_coordinates.keys())[:]:
+            if numpy.issubdtype(type(data_coordinates[k]), numpy.float):
+                ticks = self.get_ticks(k)
+                data_coordinates[k] = numpy.argmin(numpy.abs(ticks-data_coordinates[k]))
+            elif data_coordinates[k] is None:
+                raise ValueError("None cannot be used in data coordinates")
+                
+        #If we want an axis in the return values, we should not select it directly (but a slice is ok)
+        #FIXME: check this!
+        for k in return_axes_order:
+            if k in data_coordinates and numpy.issubdtype(type(data_coordinates[k]), numpy.integer):
+                data_coordinates[k] = slice(None, None)
+            
         data_indexes = [data_coordinates.get(x, slice(None, None)) for x in self._dimensions_list]
+        return_indexes = [i for i, v in enumerate(data_indexes) if type(v) in (slice, list, tuple)]
         
-        data = getattr(self, on)[data_indexes]
+        #If out of bounds, return an all-masked array
+        try:
+            data = getattr(self, on)[data_indexes]
+        except IndexError:
+            data = numpy.ma.masked_all([self._data.shape[i] for i in return_indexes], dtype=float)
         
         if return_axes_order is not None:
-            return_indexes = [i for i, v in enumerate(data_indexes) if type(v) in (slice, list, tuple)]
+            
             assert len(return_indexes) == data.ndim
             return_axes_order = [self._dimensions_list.index(x) for x in return_axes_order]
             
             return_axes_all = return_axes_order + [x for x in return_indexes if x not in return_axes_order]
-            data = data.transpose([return_indexes.index(i) for i in return_axes_all])
+            transpose_axes = [return_indexes.index(i) for i in return_axes_all]
+            data = data.transpose(transpose_axes)
             
             if len(return_axes_order) != len(return_axes_all):
                 data = getattr(data, self._avg_func)(axis=tuple(range(len(return_axes_order), len(return_axes_all))))
@@ -224,15 +246,16 @@ class HicsDataView(QtCore.QObject):
             
     @property
     def data_to_display(self):
-        if self.__cache_data_to_display is not None:
+        if self.__cache_data_to_display is not None and False:
             return self.__cache_data_to_display
         bands = self.display_bands
-        if all(x is None for x in bands.values()):
+        if all(x is None for x in bands.values()) or self.data_axis in self.spatial_axes:
             data_all = self.data.data_at({}, self.spatial_axes)
         else:
             bands_list = [bands['r'], bands['g'], bands['b']]
             data = self.data.data_at({self.data_axis: [x for x in bands_list if x is not None],}, self.spatial_axes+[self.data_axis])
             
+            assert data.shape[-1] == len([x for x in bands_list if x is not None])
             #Fill to get always all the bands
             data_all = numpy.ma.masked_all(data.shape[:-1] + (len(bands_list), ))
             b = 0

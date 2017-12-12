@@ -132,12 +132,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             return
         
         data = self._m[self._current_key]
+        hdv = self._view_widget.hicsdataview
         
         if re.match('^refl-[0-9]{5}-w$', new_key):
             dims = ('y', 'l')
         elif hasattr(data, 'shape'):
             if data.ndim == 3:
                 dims = ('y', 'x', 'l')
+                hdv.spatial_axes = ['y', 'x']
+                if data.shape[1] == 1:
+                    hdv.spatial_axes = ['y', 'l']
             else:
                 print(data.shape)
                 return
