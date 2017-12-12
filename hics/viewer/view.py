@@ -104,12 +104,14 @@ class HicsData(QtCore.QObject):
     
     def var_at(self, data_coordinates=None, return_axes_order=None):
         if self._var is None:
-            return numpy.ma.zeros_like(self.__at(data_coordinates, return_axes_order, '_data'))
+            return numpy.ma.zeros(self.__at(data_coordinates, return_axes_order, '_data').shape)
         return self.__at(data_coordinates, return_axes_order, '_var')
     
 
 class HicsDataView(QtCore.QObject):
-    viewChanged = QtCore.pyqtSignal(name='viewChanged')
+    display2dChanged = QtCore.pyqtSignal(name='display2dChanged')
+    display1dChanged = QtCore.pyqtSignal(name='display1dChanged')
+    displayPointsChanged = QtCore.pyqtSignal(name='displayPointsChanged')
     
     def __init__(self, **kw):
         super().__init__()
@@ -133,11 +135,16 @@ class HicsDataView(QtCore.QObject):
             
         
             
-    def _changed(self, data_changed=True):
+    def _changed(self, data_changed=False, display_1d_changed=False, display_2d_changed=False, display_points_changed=False):
         if data_changed:
             self.__cache_data_to_display = None
         if self.valid:
-            self.viewChanged.emit()        
+            if display_2d_changed:
+                self.display2dChanged.emit()
+            if display_1d_changed:
+                self.display1dChanged.emit()
+            if display_points_changed:
+                self.displayPointsChanged.emit()
     
     @property
     def valid(self):
@@ -160,9 +167,7 @@ class HicsDataView(QtCore.QObject):
     def data(self, newvalue):
         assert isinstance(newvalue, HicsData)
         self._data = newvalue
-        self._changed(data_changed=True)
-
-            
+        self._changed(data_changed=True, display_1d_changed=True, display_2d_changed=True)
     
     @property
     def display_bands(self):
@@ -172,11 +177,12 @@ class HicsDataView(QtCore.QObject):
         if k not in self._display_bands.keys():
             raise KeyError(k)
         
-        if not (0 <= value < self.data.get_dimension(self._data_axis)):
-            raise ValueError("{} is out of bounds for {}".format(value, self._data_axis))
+        if value is not None:
+            if not (0 <= value < self.data.get_dimension(self._data_axis)):
+                raise ValueError("{} is out of bounds for {}".format(value, self._data_axis))
         
         self._display_bands[k] = value
-        self._changed(data_changed=True)
+        self._changed(display_2d_changed=True, data_changed=True)
         
     @property
     def display_points(self):
@@ -186,12 +192,13 @@ class HicsDataView(QtCore.QObject):
         if k not in self._display_points.keys():
             raise KeyError(k)
         
-        assert type(p) == dict
-        assert all(x in self.data.axes for x in p.keys())
+        if p is not None:
+            assert type(p) == dict
+            assert all(x in self.data.axes for x in p.keys())
         #FIXME: check points
         
         self._display_points[k] = p
-        self._changed()   
+        self._changed(display_points_changed=True)
         
         
     @property
@@ -202,7 +209,7 @@ class HicsDataView(QtCore.QObject):
     def spatial_axes(self, newvalue):
         assert isinstance(newvalue, list)
         self._spatial_axes = newvalue.copy()
-        self._changed(data_changed=True)      
+        self._changed(data_changed=True, display_2d_changed=True)      
         
     @property
     def data_axis(self):
@@ -212,7 +219,7 @@ class HicsDataView(QtCore.QObject):
     def data_axis(self, newvalue):
         assert isinstance(newvalue, str)
         self._data_axis = newvalue
-        self._changed(data_changed=True)
+        self._changed(display_1d_changed=True)
             
             
     @property
@@ -256,7 +263,7 @@ class HicsDataView(QtCore.QObject):
         #No checks, be careful here!
         self._cnorm_points = newvalue.copy()
         if self.valid:
-            self.viewChanged.emit()        
+            self.display2dChanged.emit()        
     
     def cnorm_points_get(self, data_idx):
         key = (self.data.data_ref, data_idx)
@@ -280,7 +287,7 @@ class HicsDataView(QtCore.QObject):
     def cnorm_points_set(self, data_idx, points):
         key = (self.data.data_ref, data_idx)
         self._cnorm_points[key] = points
-        self._changed(data_changed=False)     
+        self._changed(display_2d_changed=True)     
     
     def cnorm_get(self, data_idx):
         return PChipNormalize(self.cnorm_points_get(data_idx))
@@ -292,154 +299,4 @@ class HicsDataView(QtCore.QObject):
     def get_ax_extent(self, ax):
         ticks = self.data.get_ticks(ax)
         return (ticks.min(), ticks.max())
-        
-
-class HicsDataView_(QtCore.QObject):
-    viewChanged = QtCore.pyqtSignal(name='viewChanged')
-    
-    def __init__(self, filename, key, dimlist, dimfunctions=None, normpoints=None):
-        super().__init__()
-        #TMP
-        test = HicsData(filename, key, dimlist, 'DN')
-        print(test.data_at({}, ['x', 'l', 'y']).shape)
-        self._m = mmapdict(filename, True)
-        self._filename = filename
-        self._key = key
-        self._dimlist = dimlist
-        self._dimfunctions = dimfunctions
-        if dimfunctions is None:
-            if len(self._dimlist) == 2:
-                self._dimfunctions = [None, None]
-            else:
-                self._dimfunctions = [{'x': None, 'y': None}.get(k, 'mean') for k in self._dimlist]
-        
-        assert self._key in self._m
-        assert self._m[self._key].ndim == len(dimlist)
-    
-        assert all(x in ('x', 'y', 'l', 'exp', 'abundance') for x in self._dimlist)
-        self._data = self._m[self._key]
-        if self._key + '-var' in self._m.keys():
-            self._var = self._m[self._key+'-var']
-        else:
-            self._var = None
-                
-        self._normpoints = normpoints
-        if self._normpoints is None:
-            self._normpoints = []
-            
-    @property
-    def data_to_display(self):
-        indexes = [{None: slice(None, None), 'mean': slice(None, None), 'median': slice(None, None)}.get(k, k) for k in self._dimfunctions]
-        d = self._data
-        for f_id, f in reversed(list(enumerate(self._dimfunctions))):
-            if type(f) == None:
-                continue
-            elif type(f) == tuple:
-                new_shape = list(d.shape)
-                new_shape[f_id] = len(f)
-                new_d = numpy.ma.masked_all(new_shape)
-                for new_idx, old_idx in enumerate(f):
-                    if old_idx is None:
-                        continue
-                    old_idx_full = [slice(None, None)] * f_id + [old_idx] + [Ellipsis]
-                    new_idx_full = [slice(None, None)] * f_id + [new_idx] + [Ellipsis]
-                    new_d[new_idx_full] = d[old_idx_full]
-                
-                d = new_d
-            elif type(f) == str:
-                d = getattr(d, f)(f_id)
-        return d
-    
-    @property
-    def data_to_display_axes(self):
-        return [self._dimlist[i] for i, k in enumerate(self._dimfunctions) if k is None]
-    
-    @property
-    def data_at_axes(self):
-        return [k for k in self._dimlist if k not in ['x', 'y']]
-    
-    @property
-    def wavelengths(self):
-        return numpy.array(self._m['wavelengths'])
-    
-    def get_ax_extent(self, axn):
-        if axn == 'l':
-            return [self.wavelengths.min(), self.wavelengths.max()]
-        return [0, self._data.shape[self._dimlist.index(axn)]]
-        
-    def data_at(self, x, y):
-        indexes = [{'x': x, 'y': y}.get(k, slice(None, None)) for k in self._dimlist]
-        return self._data[indexes]
-    
-    def var_at(self, x, y):
-        indexes = [{'x': x, 'y': y}.get(k, slice(None, None)) for k in self._dimlist]
-        if self._var is None:
-            return None
-        else:
-            return self._var[indexes]
-    
-    def get_normpoints(self, data_idx):
-        while len(self._normpoints) < data_idx + 1:
-            self._normpoints.append([])
-            
-        if len(self._normpoints[data_idx]) == 0:
-            vd = self.data_to_display
-            if vd.ndim == 2:
-                assert data_idx == 0
-                vd = vd[:, :, numpy.newaxis]
-            assert vd.ndim == 3
-            
-            dimdata = vd[:, :, data_idx]
-            
-            if hasattr(dimdata, 'compressed'):
-                dimdata = dimdata.compressed()
-            else:
-                dimdata = dimdata.flatten()
-            
-            if len(dimdata) == 0:
-                self._normpoints[data_idx] = [(0, 0), (1, 1)]
-            else:
-                self._normpoints[data_idx] = [(dimdata.min(), 0), (numpy.percentile(dimdata, 1), 0), (numpy.percentile(dimdata, 99), 1), (dimdata.max(), 1)]
-        return self._normpoints[data_idx]
-    
-    def set_normpoints(self, data_idx, new_data):
-        while len(self._normpoints) < data_idx + 1:
-            self._normpoints.append([])
-        self._normpoints[data_idx] = new_data
-        self.viewChanged.emit()
-        
-    def get_norm(self, data_idx):
-        return PChipNormalize(self.get_normpoints(data_idx))
-    
-    @property
-    def cm(self):
-        return matplotlib.cm.get_cmap('jet')
-    
-    @property
-    def lastdim(self):
-        return [dim_id for dim_id, k in enumerate(self._dimlist) if k not in ['x', 'y']][-1]
-    
-    def get_dataindex(self, color_index):
-        if type(self._dimfunctions[self.lastdim]) != tuple:
-            return None
-        
-        if color_index < len(self._dimfunctions[self.lastdim]):
-            return self._dimfunctions[self.lastdim][color_index]
-        
-        return None
-        
-    def set_dataindex(self, color_index, matrix_index):
-        if type(self._dimfunctions[self.lastdim]) != tuple:
-            self._dimfunctions[self.lastdim] = (None, None, None)
-        
-        df = list(self._dimfunctions[self.lastdim])
-        #FIXME: Save normalization
-        df[color_index] = matrix_index
-        df = tuple(df)
-        if df == (None, None, None):
-            df = 'mean'
-        #FIXME: Restore normalization (or create a new one)
-        
-        self._dimfunctions[self.lastdim] = df
-        self.viewChanged.emit()
         

@@ -17,7 +17,7 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         bands_used = False
         for k in 'rgb':
             if self._hdv.display_bands[k] is not None:
-                hl.addWidget(MplColorCurveCanvas(self, hdv, v))
+                hl.addWidget(MplColorCurveCanvas(self, hdv, self._hdv.display_bands[k]))
                 bands_used = True
                 
         if not bands_used:
@@ -72,7 +72,7 @@ class MplColorCurveCanvas(MplCanvas):
         self._point_moving = None
         self._dragging = False
         
-        hdv.viewChanged.connect(self._plots_update)
+        hdv.display2dChanged.connect(self._plots_update)
         
     @property
     def _points(self):
