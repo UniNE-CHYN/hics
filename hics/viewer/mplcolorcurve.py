@@ -13,11 +13,15 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         
         vl = QtWidgets.QVBoxLayout(self)
         hl = QtWidgets.QHBoxLayout()
-        hl.addWidget(MplColorCurveCanvas(self, hdv, 0))
         
-        if hdv.data_to_display.ndim == 3:
-            for i in range(1, hdv.data_to_display.shape[2]):
-                hl.addWidget(MplColorCurveCanvas(self, hdv, i))
+        bands_used = False
+        for k in 'rgb':
+            if self._hdv.display_bands[k] is not None:
+                hl.addWidget(MplColorCurveCanvas(self, hdv, v))
+                bands_used = True
+                
+        if not bands_used:
+            hl.addWidget(MplColorCurveCanvas(self, hdv, None))
         vl.addLayout(hl)
         self._bb = QtWidgets.QDialogButtonBox(self)
         self._bb.setOrientation(QtCore.Qt.Horizontal)
@@ -31,44 +35,33 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         
     def buttonClicked(self, button):
         if self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.ResetRole:
-            #restore defaults
-            self._hdv.set_normpoints(0, [])
+            self._hdv.cnorm_points = {}
             
-            if self._hdv.data_to_display.ndim == 3:
-                for i in range(1, self._hdv.data_to_display.shape[2]):
-                    self._hdv.set_normpoints(i, [])
         elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.RejectRole:
             self.close()
 
 class MplColorCurveCanvas(MplCanvas):
     histo_alpha = 0.5
-    _rgb_cmaps = [
-        matplotlib.colors.LinearSegmentedColormap.from_list('_red', [(0, 0, 0), (1, 0, 0)], 256),
-        matplotlib.colors.LinearSegmentedColormap.from_list('_green', [(0, 0, 0), (0, 1, 0)], 256),
-        matplotlib.colors.LinearSegmentedColormap.from_list('_blue', [(0, 0, 0), (0, 0, 1)], 256), 
-    ]
+    _rgb_cmaps = {
+        'r': matplotlib.colors.LinearSegmentedColormap.from_list('_red', [(0, 0, 0), (1, 0, 0)], 256),
+        'g': matplotlib.colors.LinearSegmentedColormap.from_list('_green', [(0, 0, 0), (0, 1, 0)], 256),
+        'b': matplotlib.colors.LinearSegmentedColormap.from_list('_blue', [(0, 0, 0), (0, 0, 1)], 256), 
+    }
 
-    def __init__(self, parent, hdv, dim_id):
+    def __init__(self, parent, hdv, band_id):
         MplCanvas.__init__(self, parent, 5, 4, 100)
         self._hdv = hdv
-        self._dim_id = dim_id
+        self._band_id = band_id
         
-        if hdv.data_to_display.ndim == 2:
-            d = hdv.data_to_display
-        else:
-            d = hdv.data_to_display[:, :, self._dim_id]
-            
-        if hasattr(d, 'compressed'):
-            self._histo = numpy.histogram(d.compressed(), 100)
-        else:
-            self._histo = numpy.histogram(d.flatten(), 100)
+        data = self._hdv.data_for_band(band_id)
+        self._histo = numpy.histogram(data.compressed(), 100)
         
         self._move_mutex = QtCore.QMutex(QtCore.QMutex.NonRecursive)
         
-        if hdv.data_to_display.ndim == 2 or (hdv.data_to_display.ndim == 3 and hdv.data_to_display.shape[2] == 1):
+        if self._band_id is None:
             self._cmap = hdv.cm
         else:
-            self._cmap = self._rgb_cmaps[self._dim_id]
+            self._cmap = self._rgb_cmaps[[color for color, hdv_band_id in self._hdv.display_bands.items() if hdv_band_id == band_id][0]]
         
         self.mpl_connect('button_press_event', self.__mpl_onpress)
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
@@ -83,19 +76,19 @@ class MplColorCurveCanvas(MplCanvas):
         
     @property
     def _points(self):
-        return self._hdv.get_normpoints(self._dim_id)
+        return self._hdv.cnorm_points_get(self._band_id)
     
     def _point_remove(self, point):
-        d = self._hdv.get_normpoints(self._dim_id)[:]
+        d = self._hdv.cnorm_points_get(self._band_id)[:]
         d_inner = d[1:-1]
         d_inner.remove(point)
-        self._hdv.set_normpoints(self._dim_id, [d[0]]+d_inner+[d[-1]])
+        self._hdv.cnorm_points_set(self._band_id, [d[0]]+d_inner+[d[-1]])
         
     def _point_add(self, point):
-        d = self._hdv.get_normpoints(self._dim_id)[:]
+        d = self._hdv.cnorm_points_get(self._band_id)
         d.append(point)
         d.sort()
-        self._hdv.set_normpoints(self._dim_id, d)
+        self._hdv.cnorm_points_set(self._band_id, d)
         
         
         

@@ -4,6 +4,7 @@ from .mpl import MplCanvas
 from .mplcolorcurve import ColorCurvesWindow
 import matplotlib
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+from .view import HicsDataView
 
 class NavigationToolbarImageCanvas(NavigationToolbar2QT):
     toolitems = (
@@ -43,6 +44,11 @@ class ImageCanvas(MplCanvas):
         self._points = {}
         self._current_mouse_position = None
         
+        self.__redraw_required = False
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self.__check_if_redraw_needed)
+        timer.start(1000/25)        
+        
     def __mpl_onrelease(self, event):
         if event.button == 3:  #right click
             self._popmenu.clear()
@@ -68,6 +74,14 @@ class ImageCanvas(MplCanvas):
         except:
             self._current_mouse_position = None
             
+    def __check_if_redraw_needed(self):
+        if self.__redraw_required:
+            self.show_data()
+            self.__redraw_required = False
+            
+    def redraw_required(self):
+        self.__redraw_required = True
+            
     def show_data(self):
         if self.parent().hicsdataview is None:
             self._image.set_data([[numpy.nan]])
@@ -77,24 +91,24 @@ class ImageCanvas(MplCanvas):
             
             if data.ndim == 2:
                 self._image.set_data(data)
-                self._image.set_norm(hdv.get_norm(0))
+                self._image.set_norm(hdv.cnorm_get(None))
                 self._image.set_cmap(hdv.cm)
             else:
                 data_norm = numpy.ma.zeros((data.shape[0], data.shape[1], numpy.clip(data.shape[2], 3, 4)))
                 for d in range(data.shape[2]):
-                    data_norm[:, :, d] = hdv.get_norm(d)(data[:, :, d])
+                    data_norm[:, :, d] = hdv.cnorm_get(d)(data[:, :, d])
                 #RGB images don't support masked values, so fill...
                 #FIXME: (make empty pixels white?)
                 self._image.set_data(data_norm.filled(0.))
             
-            ax0, ax1 = hdv.data_to_display_axes
+            ax_y, ax_x = hdv.spatial_axes
         
-            self.axes.set_xlabel(self._labels.get(ax1, ax1))
-            self.axes.set_ylabel(self._labels.get(ax0, ax0))
+            self.axes.set_xlabel(self._labels.get(ax_x, ax_x))
+            self.axes.set_ylabel(self._labels.get(ax_y, ax_y))
         
-            self._image.set_extent(hdv.get_ax_extent(ax1) + hdv.get_ax_extent(ax0)[::-1])
-            self.axes.set_xlim(*hdv.get_ax_extent(ax1))
-            self.axes.set_ylim(*hdv.get_ax_extent(ax0))
+            self._image.set_extent(hdv.get_ax_extent(ax_x) + hdv.get_ax_extent(ax_y)[::-1])
+            self.axes.set_xlim(*hdv.get_ax_extent(ax_x))
+            self.axes.set_ylim(*hdv.get_ax_extent(ax_y))
             
         self.draw()
         
@@ -167,9 +181,13 @@ class DataCanvas(MplCanvas):
         
     def show_data(self, only_current=False):
         hdv = self.parent()._hicsdataview
-        if hdv is None:
+        if hdv.data is None:
             return
-        axt = hdv.data_at_axes[0]
+        
+        return
+        
+        axt = hdv.data_axis
+        xdata = hdv.data
         
         items = [(None, self._current_mouse_position)]
         
@@ -261,11 +279,13 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
         self.insertWidget(0, self._canvas_image)
         self.insertWidget(1, self._canvas_data)
         
-        self._hicsdataview = None
+        self._hicsdataview = HicsDataView()
         
-        self.dataChanged.connect(self._canvas_image.show_data)
-        self.dataChanged.connect(self._canvas_data.show_data)
+        self._hicsdataview.viewChanged.connect(self.dataChanged)
+        self.dataChanged.connect(self._canvas_image.redraw_required)
         self.dataPointsChanged.connect(self._canvas_image.show_points)
+        
+        self.dataChanged.connect(self._canvas_data.show_data)
         self.dataPointsChanged.connect(self._canvas_data.show_data)
         
     @property
@@ -291,15 +311,7 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
     @property
     def hicsdataview(self):
         return self._hicsdataview
-    
-    @hicsdataview.setter
-    def hicsdataview(self, newvalue):
-        if self._hicsdataview is not None:
-            self._hicsdataview.viewChanged.disconnect(self.dataChanged)
-        self._hicsdataview = newvalue
-        if self._hicsdataview is not None:
-            self._hicsdataview.viewChanged.connect(self.dataChanged)
-        self.dataChanged.emit()
+
 
 
 #class MyMplCanvas(FigureCanvas):
