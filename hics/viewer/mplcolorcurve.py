@@ -79,10 +79,7 @@ class MplColorCurveCanvas(MplCanvas):
         
         self._move_mutex = QtCore.QMutex(QtCore.QMutex.NonRecursive)
         
-        if self._band_id is None:
-            self._cmap = hdv.cm
-        else:
-            self._cmap = self._rgb_cmaps[[color for color, hdv_band_id in self._hdv.display_bands.items() if hdv_band_id == band_id][0]]
+
         
         self.mpl_connect('button_press_event', self.__mpl_onpress)
         self.mpl_connect('button_release_event', self.__mpl_onrelease)
@@ -94,6 +91,13 @@ class MplColorCurveCanvas(MplCanvas):
         self._dragging = False
         
         hdv.display2dChanged.connect(self._plots_update)
+        
+    @property
+    def _cmap(self):
+        if self._band_id is None:
+            return self._hdv.cm
+        else:
+            return self._rgb_cmaps[[color for color, hdv_band_id in self._hdv.display_bands.items() if hdv_band_id == self._band_id][0]]        
         
     @property
     def _points(self):
