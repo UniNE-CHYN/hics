@@ -50,9 +50,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
         self._view_widget = HicsDataViewWidget(self)
         
+        self._text_widget = QtWidgets.QTextEdit(self)
+        self._text_widget.setReadOnly(True)
+        self._text_widget.hide()
+        
         self._splitter_data = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self._splitter_data.insertWidget(0, self._data_list)
         self._splitter_data.insertWidget(1, self._view_widget)
+        self._splitter_data.insertWidget(2, self._text_widget)
         self.setCentralWidget(self._splitter_data)
         
         self.file_menu = QtWidgets.QMenu('&File', self)
@@ -146,11 +151,86 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 print(data.shape)
                 return
         else:
-            print(type(data))
+            self._text_widget.setText(self._to_html(self._current_key))
+            
+            self._text_widget.show()
+            self._view_widget.hide()
+            
             return
         
+        self._text_widget.hide()
+        self._view_widget.show()        
         self._view_widget.hicsdataview.data = HicsData(self._f, self._current_key, dims, 'DN')
         
+    def _to_html(self, key):
+        data = self._m[key]
+        if type(data) == str:
+            return data
+        elif type(data) == dict and re.match('^(scan|white)-[0-9]+-p$', key):
+            #Scan properties
+            r = ['<table border=1 width="100%">']
+            klist = list(data.keys())
+            
+            known_keys = [
+                ('integration_time', 'Integration time', lambda x: '{}μs'.format(x)), 
+                ('d0_start_time', 'Dark frames start time (before)', lambda x: self._to_html_field(x)),
+                ('d0_end_time', 'Dark frames end time (before)', lambda x: self._to_html_field(x)),
+                ('d1_start_time', 'Dark frames start time (after)', lambda x: self._to_html_field(x)),
+                ('d1_end_time', 'Dark frames end time (after)', lambda x: self._to_html_field(x)),
+            ]
+            
+            for k, text, format_function in known_keys:
+                if k not in data.keys():
+                    continue
+                r += ['<tr><td><b>{}</b></td><td>{}</td></tr>'.format(text, format_function(data[k]))]
+                klist.remove(k)
+                
+            if 'data_positions' in klist:
+                klist.remove('data_positions')
+                v = []
+                for t in sorted(data['data_positions'].keys()):
+                    v.append('{}: {} {}'.format(str(t), data['data_positions'][t][0], {True: '(M)',}.get(data['data_positions'][t][1], '')))
+                text = '<br>'.join(v)
+                    
+                r += ['<tr><td><b>Scan positions</b></td><td>{}</td></tr>'.format(text)]
+                
+                
+            for k in klist:
+                r += ['<tr><td><b>{}</b></td><td>{}</td></tr>'.format(k, pprint.pformat(data[k]))]
+            
+            r += ['<table>']
+            
+            return ''.join(r)
+        elif type(data) == list and key == 'processing_steps':
+            r = ['<table border=1 width="100%">']
+            for mod, rev, options in data:
+                r += ['<tr><td><b>{}</b></td><td>{}</td></tr>'.format(mod, self._to_html_field(rev))]
+                r += ['<tr><td colspan=2>{}</td></tr>'.format(options)]
+            
+            r += ['<table>']
+            return ''.join(r)
+        elif type(data) == dict:
+            r = ['<table border=1 width="100%">']
+            for k in data.keys():
+                r += ['<tr><td><b>{}</b></td><td>{}</td></tr>'.format(str(k), pprint.pformat(data[k]))]
+            
+            r += ['<table>']
+            return ''.join(r)
+        elif key == 'wavelengths':
+            r = ['<table border=1 width="100%">']
+            for band_id, center_wavelength in enumerate(data):
+                r += ['<tr><td><b>Band {}</b></td><td>{}nm</td></tr>'.format(band_id, center_wavelength)]
+            
+            r += ['<table>']
+            return ''.join(r)
+        else:
+            return pprint.pformat(data)
+        
+    def _to_html_field(self, data):
+        if type(data) == bytes:  #Specific formats
+            return data.decode('utf-8')
+        else:
+            return str(data)        
             
     def fileQuit(self):
         self.close()
