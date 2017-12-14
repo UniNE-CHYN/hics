@@ -21,7 +21,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from hics.viewer.viewwidget import HicsDataViewWidget
-from hics.viewer.view import HicsDataView, HicsData
+from hics.viewer.view import QHicsDataView, HicsData
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):

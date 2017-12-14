@@ -21,6 +21,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
+
 import scipy.interpolate
 import os
 
@@ -38,7 +39,7 @@ class PChipNormalize(matplotlib.colors.Normalize):
     def __call__(self, value, clip=None):
         return numpy.ma.masked_array(numpy.interp(value, self._xs, self._ys), numpy.ma.getmask(value))
     
-class HicsData(QtCore.QObject):
+class HicsData:
     """This object is immutable and represent a data series in a file"""
     def __init__(self, filename, key, dimensions_list, value_unit, avg_func='mean'):
         super().__init__()
@@ -130,10 +131,8 @@ class HicsData(QtCore.QObject):
         return self.__at(data_coordinates, return_axes_order, '_var')
     
 
-class HicsDataView(QtCore.QObject):
-    display2dChanged = QtCore.pyqtSignal(name='display2dChanged')
-    display1dChanged = QtCore.pyqtSignal(name='display1dChanged')
-    displayPointsChanged = QtCore.pyqtSignal(name='displayPointsChanged')
+class HicsDataView:
+
     
     def __init__(self, **kw):
         super().__init__()
@@ -144,6 +143,8 @@ class HicsDataView(QtCore.QObject):
         self._spatial_axes = ['y', 'x']
         self._data_axis = 'l'
         self._cnorm_points = {}
+        #Use property
+        self.cm = 'jet'
         
         self._display_bands = dict([(x, None) for x in 'rgb'])
         self._display_points = dict([(x, None) for x in matplotlib.rcParams['axes.prop_cycle'].by_key()['color']])
@@ -160,13 +161,6 @@ class HicsDataView(QtCore.QObject):
     def _changed(self, data_changed=False, display_1d_changed=False, display_2d_changed=False, display_points_changed=False):
         if data_changed:
             self.__cache_data_to_display = None
-        if self.valid:
-            if display_2d_changed:
-                self.display2dChanged.emit()
-            if display_1d_changed:
-                self.display1dChanged.emit()
-            if display_points_changed:
-                self.displayPointsChanged.emit()
     
     @property
     def valid(self):
@@ -285,9 +279,8 @@ class HicsDataView(QtCore.QObject):
     def cnorm_points(self, newvalue):
         #No checks, be careful here!
         self._cnorm_points = newvalue.copy()
-        if self.valid:
-            self.display2dChanged.emit()        
-    
+        self._changed(display_2d_changed=True)
+        
     def cnorm_points_get(self, data_idx):
         key = (self.data.data_ref, data_idx)
         
@@ -317,9 +310,37 @@ class HicsDataView(QtCore.QObject):
         
     @property
     def cm(self):
-        return matplotlib.cm.get_cmap('jet')
+        return self._cm
+    
+    @cm.setter
+    def cm(self, newvalue):
+        if type(newvalue) == str:
+            self._cm = matplotlib.cm.get_cmap(newvalue)
+        else:
+            self._cm = newvalue
+        self._changed(display_2d_changed=True)    
     
     def get_ax_extent(self, ax):
         ticks = self.data.get_ticks(ax)
         return (ticks.min(), ticks.max())
         
+class QHicsDataView(HicsDataView, QtCore.QObject):
+    display2dChanged = QtCore.pyqtSignal(name='display2dChanged')
+    display1dChanged = QtCore.pyqtSignal(name='display1dChanged')
+    displayPointsChanged = QtCore.pyqtSignal(name='displayPointsChanged')
+    
+    def __init__(self, *a, **kw):
+        QtCore.QObject.__init__(self)
+        HicsDataView.__init__(self, *a, **kw)
+        
+
+    def _changed(self, data_changed=False, display_1d_changed=False, display_2d_changed=False, display_points_changed=False):
+        if data_changed:
+            self.__cache_data_to_display = None
+        if self.valid:
+            if display_2d_changed:
+                self.display2dChanged.emit()
+            if display_1d_changed:
+                self.display1dChanged.emit()
+            if display_points_changed:
+                self.displayPointsChanged.emit()

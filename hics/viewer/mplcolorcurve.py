@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from .mpl import MplCanvas
 import numpy
 import scipy.interpolate
@@ -10,6 +10,9 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         super().__init__(parent)
         
         self._hdv = hdv
+        
+        self._cmmenu = QtWidgets.QMenu(self)
+
         
         vl = QtWidgets.QVBoxLayout(self)
         hl = QtWidgets.QHBoxLayout()
@@ -26,6 +29,8 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         self._bb = QtWidgets.QDialogButtonBox(self)
         self._bb.setOrientation(QtCore.Qt.Horizontal)
         self._bb.setStandardButtons(QtWidgets.QDialogButtonBox.Close|QtWidgets.QDialogButtonBox.RestoreDefaults)
+        if not bands_used:
+            self._bb.addButton('Change colormap', QtWidgets.QDialogButtonBox.ActionRole)
         vl.addWidget(self._bb)
 
         self._bb.clicked.connect(self.buttonClicked)
@@ -33,12 +38,28 @@ class ColorCurvesWindow(QtWidgets.QDialog):
         #self.buttonBox.rejected.connect(Dialog.reject)
         #QtCore.QMetaObject.connectSlotsByName(Dialog)
         
+    def __set_cm(self, cm):
+        self._hdv.cm = cm
+        
     def buttonClicked(self, button):
         if self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.ResetRole:
             self._hdv.cnorm_points = {}
             
         elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.RejectRole:
             self.close()
+        
+        elif self._bb.buttonRole(button) == QtWidgets.QDialogButtonBox.ActionRole:
+            #FIXME: check if the button is the one we think, but for now there is only one...
+            self._cmmenu.clear()
+            for cm_name in sorted(m for m in matplotlib.cm.datad):
+                action = self._cmmenu.addAction(cm_name)
+                action.triggered.connect(lambda x, y=cm_name: self.__set_cm(y))
+                if cm_name == self._hdv.cm.name:
+                    action.setCheckable(True)
+                    action.setChecked(True)
+                    
+            self._cmmenu.exec_(QtGui.QCursor().pos())
+            
 
 class MplColorCurveCanvas(MplCanvas):
     histo_alpha = 0.5

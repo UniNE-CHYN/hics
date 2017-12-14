@@ -4,7 +4,7 @@ from .mpl import MplCanvas
 from .mplcolorcurve import ColorCurvesWindow
 import matplotlib
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from .view import HicsDataView
+from .view import QHicsDataView
 
 class NavigationToolbarImageCanvas(NavigationToolbar2QT):
     toolitems = (
@@ -271,7 +271,7 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
         self.insertWidget(0, self._canvas_image)
         self.insertWidget(1, self._canvas_data)
         
-        self._hicsdataview = HicsDataView()
+        self._hicsdataview = QHicsDataView()
         
         self._hicsdataview.display2dChanged.connect(self._canvas_image.redraw_required)
         #Thisis cheap to do...
