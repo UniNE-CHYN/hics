@@ -27,11 +27,16 @@ import os
 
 class PChipNormalize(matplotlib.colors.Normalize):
     def __init__(self, points):
-        xi = [x[0] for x in points]
-        yi = [x[1] for x in points]
+        xi = [float(x[0]) for x in points]
+        yi = [float(x[1]) for x in points]
+        
+        #Ignore points with the same xi
+        xif = list(sorted(set(xi)))
+        yif = [yi[xi.index(xf)] for xf in xif]
+            
         
         self._xs = numpy.linspace(xi[0], xi[-1], 1000)
-        self._ys = numpy.clip(scipy.interpolate.pchip_interpolate(xi, yi, self._xs), 0, 1)
+        self._ys = numpy.clip(scipy.interpolate.pchip_interpolate(xif, yif, self._xs), 0, 1)
         
         matplotlib.colors.Normalize.__init__(self, xi[0], xi[-1], True)
         

@@ -73,7 +73,14 @@ class ImageCanvas(MplCanvas):
                 nearest = pdists[numpy.argmin([x[1] for x in pdists])][0]
                 action = self._popmenu.addAction("Remove nearest point")
                 action.triggered.connect(lambda v: hdv.display_points_set(nearest, None))
-
+                
+            self._popmenu.addSeparator()
+        
+            action = self._popmenu.addAction("Export")
+            action.triggered.connect(lambda v: self.parent().export())
+            
+            action = self._popmenu.addAction("Save as image")
+            action.triggered.connect(lambda v: self.save_image())       
             
             self._popmenu.exec_(QtGui.QCursor().pos())
             
@@ -134,6 +141,11 @@ class ImageCanvas(MplCanvas):
         
         self.draw()
         
+    def save_image(self):
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save image","","PNG files (*.png)")
+        if fileName:
+            self._image.write_png(fileName)
+        
 class DataCanvas(MplCanvas):
     _labels = {'x': 'x [px]', 'y': 'y [px]', 'l': '$\lambda$ [nm]'}
     def __init__(self, parent):
@@ -167,7 +179,9 @@ class DataCanvas(MplCanvas):
             action.triggered.connect(lambda v: hdv.display_bands_set('g', xidx))
             
             action = self._popmenu.addAction("Set blue")
-            action.triggered.connect(lambda v: hdv.display_bands_set('b', xidx))     
+            action.triggered.connect(lambda v: hdv.display_bands_set('b', xidx))
+            
+            self._popmenu.addSeparator()
                 
             action = self._popmenu.addAction("Clear red")
             action.triggered.connect(lambda v: hdv.display_bands_set('r', None))
@@ -176,7 +190,13 @@ class DataCanvas(MplCanvas):
             action.triggered.connect(lambda v: hdv.display_bands_set('g', None))
         
             action = self._popmenu.addAction("Clear blue")
-            action.triggered.connect(lambda v: hdv.display_bands_set('b', None))  
+            action.triggered.connect(lambda v: hdv.display_bands_set('b', None))
+            
+            self._popmenu.addSeparator()
+            
+            action = self._popmenu.addAction("Export")
+            action.triggered.connect(lambda v: self.parent().export())
+            
 
             
             self._popmenu.exec_(QtGui.QCursor().pos())
@@ -291,3 +311,6 @@ class HicsDataViewWidget(QtWidgets.QSplitter):
     @property
     def hicsdataview(self):
         return self._hicsdataview
+    
+    def export(self):
+        pass
