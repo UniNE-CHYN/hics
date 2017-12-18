@@ -41,6 +41,9 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/datafile/mergecorr.py'): ('project',
         (u'--input /media/laurent/T5/migrate_library/unige/ER-146-F.calibrated --output /tmp/ER-146-F.hdr --psx 128 --psy 32 --ppx 0.5 --ppy 0 1\n',
          '')),
+                      loc('hics/datafile/transform.py'): ('project',
+        (u'--input /mnt/hyspec_gallery/Collection/Mineralogie/05_Halides,_Sulfates,_Phosphates/Anhydre/20171215085105.nmhdr --output /media/laurent/T5/test.fnmhdr --filled --mnf',
+         '')),
                       loc('hics/hardware/simulator.py'): ('project',
         (u'--datafile /data/scans/20171019104600.scan',
          '')),
@@ -65,4 +68,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/viewer/mainwindow.py'): ('project',
         (u'/data/scans/notice_rdf.calibrated',
          ''))}
-proj.main-file = loc('hics/viewer/__main__.py')
+proj.main-file = loc('hics/datafile/transform.py')

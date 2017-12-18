@@ -165,7 +165,7 @@ class DataCanvas(MplCanvas):
 
         
     def __mpl_onrelease(self, event):
-        if event.button == 3:  #right click
+        if event.button == 3 and event.xdata is not None:  #right click
             hdv = self.parent()._hicsdataview
             
             self._popmenu.clear()

@@ -195,6 +195,7 @@ class HicsDataView:
         return self._display_bands.copy()
     
     def display_bands_set(self, k, value):
+        #FIXME: handle the fact that the axis may change between elements
         if k not in self._display_bands.keys():
             raise KeyError(k)
         

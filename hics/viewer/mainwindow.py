@@ -141,7 +141,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
         if re.match('^refl-[0-9]{5}-w$', new_key):
             dims = ('y', 'l')
+            hdv.data_axis = 'l'
+        elif new_key == 'hdr-mnf':
+            dims = ('y', 'x', 'm')
+            hdv.spatial_axes = ['y', 'x']
+            hdv.data_axis = 'm'
         elif hasattr(data, 'shape'):
+            hdv.data_axis = 'l'
             if data.ndim == 3:
                 dims = ('y', 'x', 'l')
                 hdv.spatial_axes = ['y', 'x']

@@ -21,7 +21,7 @@ if __name__ == '__main__':
         if 'hdr-var' in input_data.keys():
             output_data['hdr-var'] = input_data['hdr-var'] / (intensities ** 2)
     elif args.method == 'removecont':
-        def remove_continous(wavelengths, sp, niter=100):
+        def remove_continous(wavelengths, sp, niter=10):
             wavelengths = numpy.array(wavelengths)
             fit_wl = wavelengths.copy()
             fit_sp = sp.copy()
