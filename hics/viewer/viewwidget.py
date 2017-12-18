@@ -124,7 +124,7 @@ class ImageCanvas(MplCanvas):
         
             self._image.set_extent(hdv.get_ax_extent(ax_x) + hdv.get_ax_extent(ax_y)[::-1])
             self.axes.set_xlim(*hdv.get_ax_extent(ax_x))
-            self.axes.set_ylim(*hdv.get_ax_extent(ax_y))
+            self.axes.set_ylim(*hdv.get_ax_extent(ax_y)[::-1])
             
         self.draw()
         
