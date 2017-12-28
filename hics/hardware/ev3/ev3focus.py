@@ -81,8 +81,8 @@ class EV3Focus:
            
 
 class EV3FocusRedisDaemon(EV3Focus):
-    def __init__(self, redis_conn, direct = False):
-        EV3Focus.__init__(self, direct)
+    def __init__(self, redis_conn):
+        EV3Focus.__init__(self)
         
         self._redis = redis_conn
         self._redis_notifier_state = RedisNotifier(self._redis, 'hics:focus:state', (self, '_redis_focus_state'))
@@ -114,7 +114,7 @@ class EV3FocusRedisDaemon(EV3Focus):
 
 
 if __name__ == '__main__':
-    import redis, argparse, redisrpc
+    import redis, argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", help="Redis URL")
     args = parser.parse_args()
