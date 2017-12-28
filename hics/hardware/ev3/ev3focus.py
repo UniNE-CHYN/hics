@@ -21,7 +21,7 @@ class EV3Focus:
 
     def move_absolute(self, new_position):
         """Move focus to some absolute position"""
-        self._interface.run_to_abs_pos(position_sp = new_position)
+        self._interface.run_to_abs_pos(position_sp = int(new_position))
         
         
         
