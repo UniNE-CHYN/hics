@@ -66,10 +66,18 @@ class AutoFocus(BaseImperativePlugin):
                     k = numpy.array(list(focus_data.keys()))
                     i = numpy.abs(k-current_position) < delta
                     data_x = k[i]
+                    
+                    if len(data_x) > 0 and data_x.max() > current_position and data_x.min() < current_position:
+                        #Ensure symmetry
+                        deltanew = min((current_position - data_x.min(), (data_x.max() - current_position)))
+                        
+                        i = numpy.abs(k-current_position) < deltanew
+                        data_x = k[i]                    
                     data_y = [focus_data[x] for x in data_x]
                     
-                    if len(data_x) >= 2 and data_x.max() - data_x.min() > delta / 3:
-                        print(data_x.max() - data_x.min(), delta / 3)
+                    if len(data_x) > 2:
+                        print((data_x.max() - data_x.min()) / delta)
+                    if len(data_x) >= 2 and data_x.max() - data_x.min() > delta / 4:
                         direction = numpy.polyfit(data_x, data_y, 1)[0]
                         direction = int(direction / numpy.abs(direction))
                     elif not moving:

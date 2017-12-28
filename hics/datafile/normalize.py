@@ -67,7 +67,7 @@ if __name__ == '__main__':
         wlfilter = hics.utils.datafile.get_range(args.wlfilter, len(input_data['wavelengths']))
         output_data['wavelengths'] = numpy.array(input_data['wavelengths'])[wlfilter]
     else:
-        wlfilter = slice()
+        wlfilter = slice(None, None)
         
     
     if args.method == 'percentile':
