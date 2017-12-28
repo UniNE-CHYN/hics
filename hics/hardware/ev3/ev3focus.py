@@ -13,6 +13,10 @@ class EV3Focus:
 
         self._interface.duty_cycle_sp = 100
         self._interface.stop_command = 'hold'
+        
+        self._range_from = self.range_min
+        self._range_to = self.range_max
+        
         time.sleep(1)
 
     def move_absolute(self, new_position):
