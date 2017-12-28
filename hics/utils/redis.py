@@ -4,7 +4,6 @@ import threading
 import time
 import weakref
 import types
-import numpy
 import struct
 
 class RedisLink(threading.Thread):
