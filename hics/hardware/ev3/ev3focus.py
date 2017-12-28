@@ -14,8 +14,9 @@ class EV3Focus:
         self._interface.duty_cycle_sp = 100
         self._interface.stop_command = 'hold'
         
-        self._range_from = self.range_min
-        self._range_to = self.range_max
+        #10000 around the center is usually more than enough
+        self._range_from = -10000
+        self._range_to = 10000
         
         time.sleep(1)
 
