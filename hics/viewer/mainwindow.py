@@ -47,6 +47,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
         self._data_list = QtWidgets.QListWidget(self)
         self._data_list.currentTextChanged.connect(self._key_changed)
+        self._data_list.clicked.connect(self._list_click)
         
         self._view_widget = HicsDataViewWidget(self)
         
@@ -128,10 +129,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     @property
     def wavelengths(self):
         return numpy.array(self._m['wavelengths'])
+    
+    def _list_click(self):
+        return self._key_changed(None)
         
     def _key_changed(self, new_key):
         import re
-        self._current_key = new_key
+        if new_key is not None:
+            self._current_key = new_key
         
         if self._current_key not in self._m:
             return
@@ -139,10 +144,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         data = self._m[self._current_key]
         hdv = self._view_widget.hicsdataview
         
-        if re.match('^refl-[0-9]{5}-w$', new_key):
+        if self._current_key in ('wavelengths', ):
+            #Overrides to always show as text
+            self._text_widget.setText(self._to_html(self._current_key))
+            
+            self._text_widget.show()
+            self._view_widget.hide()
+            return
+        elif re.match('^refl-[0-9]{5}-w$', self._current_key):
             dims = ('y', 'l')
             hdv.data_axis = 'l'
-        elif new_key == 'hdr-mnf':
+        elif self._current_key == 'hdr-mnf':
             dims = ('y', 'x', 'm')
             hdv.spatial_axes = ['y', 'x']
             hdv.data_axis = 'm'

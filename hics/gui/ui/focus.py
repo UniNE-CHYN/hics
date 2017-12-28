@@ -25,9 +25,15 @@ except AttributeError:
 class Ui_Focus(object):
     def setupUi(self, Focus):
         Focus.setObjectName(_fromUtf8("Focus"))
-        Focus.resize(381, 76)
+        Focus.resize(381, 135)
         self.gridLayout = QtGui.QGridLayout(Focus)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
+        self.sbSpeed = QtGui.QSpinBox(Focus)
+        self.sbSpeed.setMinimum(1)
+        self.sbSpeed.setMaximum(100000)
+        self.sbSpeed.setSingleStep(1000)
+        self.sbSpeed.setObjectName(_fromUtf8("sbSpeed"))
+        self.gridLayout.addWidget(self.sbSpeed, 2, 1, 1, 2)
         self.lbPosition = QtGui.QLabel(Focus)
         self.lbPosition.setObjectName(_fromUtf8("lbPosition"))
         self.gridLayout.addWidget(self.lbPosition, 1, 3, 1, 1)
@@ -44,6 +50,9 @@ class Ui_Focus(object):
         self.label_2 = QtGui.QLabel(Focus)
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
+        self.label_4 = QtGui.QLabel(Focus)
+        self.label_4.setObjectName(_fromUtf8("label_4"))
+        self.gridLayout.addWidget(self.label_4, 2, 0, 1, 1)
         self.sbFrom = QtGui.QSpinBox(Focus)
         self.sbFrom.setMinimum(-4096000)
         self.sbFrom.setMaximum(4096000)
@@ -69,6 +78,7 @@ class Ui_Focus(object):
         self.lbPosition.setText(_translate("Focus", "1234567", None))
         self.label.setText(_translate("Focus", "Range:", None))
         self.label_2.setText(_translate("Focus", "Position:", None))
+        self.label_4.setText(_translate("Focus", "Speed:", None))
 
 
 if __name__ == "__main__":

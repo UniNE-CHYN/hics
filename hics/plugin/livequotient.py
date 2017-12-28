@@ -51,11 +51,14 @@ class LiveQuotient(BaseImperativePlugin):
         self.get_frame(True)
         f_initial = (self.get_frame(False)[:, 0, :].astype(numpy.float) - dark_frame)
         
+        
+        pos = f_initial.shape[0]//2 + 1
+        
         while not self._stop:
             matrix = (self.get_frame(False)[:, 0, :].astype(numpy.float) - dark_frame)
             
-            data = matrix[matrix.shape[0]//2] / f_initial[f_initial.shape[0]//2]
-            #data /= numpy.percentile(data, 90)
+            data = matrix[pos] / f_initial[pos]
+            data /= numpy.percentile(data, 90)
             self.output_post(0, ','.join(str(x) for x in data))
             
 

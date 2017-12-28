@@ -15,6 +15,8 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
         self.slPosition.sliderPressed.connect(self._slot_position_pressed)
         self.slPosition.sliderReleased.connect(self._slot_position_released)
         
+        self.sbSpeed.valueChanged.connect(self._slot_speed_changed)
+        
         self.sbFrom.valueChanged.connect(self._slot_from_changed)
         self.sbTo.valueChanged.connect(self._slot_to_changed)
         
@@ -61,25 +63,43 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
         redis_client.set('hics:focus:range_to', value)
         redis_client.publish('hics:focus', 'range_to')
         
+    def _slot_speed_changed(self, value):
+        redis_client = self.parent().window()._redis_client
+        assert isinstance(redis_client, redis.client.Redis)
+        redis_client.publish('hics:focus:velocity', value)
+        
     def focus_changed(self):
         redis_client = self.parent().window()._redis_client
         assert isinstance(redis_client, redis.client.Redis)
         
+        velocity = redis_client.get('hics:focus:velocity')
         range_from = redis_client.get('hics:focus:range_from')
         range_to = redis_client.get('hics:focus:range_to')
         state = redis_client.get('hics:focus:state')
         
-        if state is not None:
-            moving, position = [int(x) for x in state.decode('ascii').split(':')]
+        range_min = redis_client.get('hics:focus:range_min')
+        range_max = redis_client.get('hics:focus:range_max')
+        velocity_min = redis_client.get('hics:focus:velocity_min')
+        velocity_max = redis_client.get('hics:focus:velocity_max')
         
-            if range_from is None:
-                range_from = position
-            if range_to is None:
-                range_to = position
+        if range_min is not None:
+            self.sbFrom.setMinimum(int(range_min))
+            self.sbTo.setMinimum(int(range_min))
             
-        self._valid_focus = range_from is not None and range_to is not None and state is not None
+        if range_max is not None:
+            self.sbFrom.setMaximum(int(range_max))
+            self.sbTo.setMaximum(int(range_max))
+            
+        if velocity_min is not None:
+            self.sbSpeed.setMinimum(int(velocity_min))
+            
+        if velocity_max is not None:
+            self.sbSpeed.setMaximum(int(velocity_max))
+
+        self._valid_focus = velocity is not None and range_from is not None and range_to is not None and state is not None
         
         if self._valid_focus:
+            velocity = float(velocity)
             range_from = int(range_from)
             range_to = int(range_to)
             moving, position = [int(x) for x in state.decode('ascii').split(':')]
@@ -108,6 +128,11 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
                 self.slPosition.setValue(position)
                 self.slPosition.blockSignals(False)
                 self.lbPosition.setText(str(position))
+            
+            if not self.sbSpeed.hasFocus():
+                self.sbSpeed.blockSignals(True)
+                self.sbSpeed.setValue(velocity)
+                self.sbSpeed.blockSignals(False)
                 
         if self.sbTo.value() != self.sbFrom.value():
             step_size = 10 ** max(0, numpy.floor(numpy.log10(numpy.abs(self.sbTo.value() - self.sbFrom.value()))) - 2)
@@ -123,4 +148,4 @@ class FocusWindow(QtGui.QWidget, Ui_Focus):
         self.sbFrom.setReadOnly(read_only)
         self.sbTo.setReadOnly(read_only)
         self.slPosition.setEnabled(not read_only)
-
+        self.sbSpeed.setReadOnly(read_only)

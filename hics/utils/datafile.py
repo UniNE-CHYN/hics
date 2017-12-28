@@ -43,3 +43,33 @@ def get_cpu_count(args=None):
         numcpus = multiprocessing.cpu_count()
     
     return numcpus
+
+def get_range(s, length=None):
+    import numpy, re
+    if s == '':
+        return None
+    
+    r = []
+    for p in s.split(','):
+        m = re.match('^(-?[0-9]+)(?:\:(-?[0-9]+)(?:\:(-?[0-9]+))?)?$', p)
+        if m is None:
+            raise ValueError("Invalid slice: {}".format(p))
+        gr = []
+        for i, g in enumerate(m.groups()):
+            if g is None:
+                gr.append(g)
+                continue
+            g = int(g)
+            if g >= 0 or i == 2:  #Positive or step size
+                gr.append(g)
+            elif length is not None:
+                gr.append(g+length)
+            else:
+                raise ValueError("Invalid slice: {} (negative value and no length provided)".format(p))  
+        
+        if gr[1] is None:
+            r.append(gr[0])
+        else:
+            r += list(numpy.r_[slice(*gr)])
+    
+    return numpy.array(r)
