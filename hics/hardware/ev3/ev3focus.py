@@ -38,7 +38,10 @@ class EV3Focus:
     @property
     def moving(self):
         """Return True if the motor is currently moving, False otherwise"""
-        moving = int(self._interface.duty_cycle) != 0
+        duty_cycle = abs(int(self._interface.duty_cycle))
+        moving = duty_cycle >= self.velocity_min
+        if not moving and duty_cycle != 0:
+            self._interface.stop()
         return moving
     
     @property

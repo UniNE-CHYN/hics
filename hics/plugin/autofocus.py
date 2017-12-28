@@ -29,13 +29,16 @@ class AutoFocus(BaseImperativePlugin):
         pos_1 = int(self._redis_client.get('hics:focus:range_from'))
         pos_2 = int(self._redis_client.get('hics:focus:range_to'))
         
-        npts = 100
+        last_direction = 0
+        delta = (pos_2 - pos_1) / 20
+        max_changes = 5
+        changes_pos = []
         
         current_position = None
         focus_data = {}
         
         last_integration_time = None
-        while not self._stop:
+        while not self._stop and len(changes_pos) < max_changes:
             key, data = self._queue.get()
             print(key)
             if key == 'hics:framegrabber:frame':
@@ -61,11 +64,12 @@ class AutoFocus(BaseImperativePlugin):
                     direction = 1
                 else:
                     k = numpy.array(list(focus_data.keys()))
-                    i = numpy.abs(k-current_position).argsort()[:npts]
+                    i = numpy.abs(k-current_position) < delta
                     data_x = k[i]
                     data_y = [focus_data[x] for x in data_x]
-                    print(data_x, data_y)
-                    if len(data_x) >= 2:
+                    
+                    if len(data_x) >= 2 and data_x.max() - data_x.min() > delta / 3:
+                        print(data_x.max() - data_x.min(), delta / 3)
                         direction = numpy.polyfit(data_x, data_y, 1)[0]
                         direction = int(direction / numpy.abs(direction))
                     elif not moving:
@@ -77,6 +81,14 @@ class AutoFocus(BaseImperativePlugin):
                         self._redis_client.publish('hics:focus:move_absolute', pos_2)
                     elif direction == -1:
                         self._redis_client.publish('hics:focus:move_absolute', pos_1)
+                        
+                    if last_direction != direction:
+                        last_direction = direction
+                        changes_pos.append(current_position)
+        
+        if len(changes_pos) == max_changes and max_changes >= 2:
+            print(changes_pos)
+            self._redis_client.publish('hics:focus:move_absolute', int((changes_pos[-1]+changes_pos[-2]) /2))
         print("STOP")
     
 if __name__ == '__main__':
