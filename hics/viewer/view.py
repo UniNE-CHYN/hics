@@ -166,6 +166,19 @@ class HicsDataView:
     def _changed(self, data_changed=False, display_1d_changed=False, display_2d_changed=False, display_points_changed=False):
         if data_changed:
             self.__cache_data_to_display = None
+            
+    def get_state(self):
+        return {
+            'cm': self.cm,
+            '_display_bands': self._display_bands,
+            '_display_points': self._display_points,
+            '_cnorm_points': self._cnorm_points,
+        }
+    
+    def set_state(self, d):
+        for k, v in d.items():
+            setattr(self, k, v)
+        
     
     @property
     def valid(self):

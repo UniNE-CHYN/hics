@@ -11,6 +11,7 @@ import queue
 import functools
 import time
 import os
+import pickle
 
 import matplotlib
 # Make sure that we are using QT5
@@ -36,20 +37,26 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Data file viewer")
         
-        self._f = f
-        if f.startswith('http://') or f.startswith('https://'):
-            self._m = httpdict(f)
+        if f.endswith('.viewstate'):
+            viewstate = pickle.load(open(f, 'rb'))
+            self._f = viewstate['f']
         else:
-            if not os.path.exists(f):
-                raise ValueError('File {} does not exist!'.format(f))
+            viewstate = None
+            self._f = f
+            
+        if self._f.startswith('http://') or self._f.startswith('https://'):
+            self._m = httpdict(self._f)
+        else:
+            if not os.path.exists(self._f):
+                raise ValueError('File {} does not exist!'.format(self._f))
             #self._m = mmapdict(f, not os.access(f, os.W_OK))
-            self._m = mmapdict(f, True)
+            self._m = mmapdict(self._f, True)
         
         self._data_list = QtWidgets.QListWidget(self)
-        self._data_list.currentTextChanged.connect(self._key_changed)
-        self._data_list.clicked.connect(self._list_click)
         
         self._view_widget = HicsDataViewWidget(self)
+        if viewstate is not None:
+            self._view_widget.hicsdataview.set_state(viewstate['hdv'])
         
         self._text_widget = QtWidgets.QTextEdit(self)
         self._text_widget.setReadOnly(True)
@@ -62,10 +69,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self._splitter_data)
         
         self.file_menu = QtWidgets.QMenu('&File', self)
+        self.file_menu.addAction('&Save state', self.fileSaveState, QtCore.Qt.CTRL + QtCore.Qt.Key_S)
         self.file_menu.addAction('&Quit', self.fileQuit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
         
         self._current_key = None
+        if viewstate is not None:
+            self._current_key = viewstate['k']
         self.keyChanged.connect(self._key_changed)
         
         self._m_old_commit_number = None
@@ -75,7 +85,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self._check_if_mmapdict_changed)
         timer.start(1000)
-
+        
+        self._data_list.itemSelectionChanged.connect(self._list_changed)
+        
+        self._key_changed(self._current_key)
+        
         #self.main_widget = QtWidgets.QWidget(self)
 
         #l = QtWidgets.QVBoxLayout(self.main_widget)
@@ -130,8 +144,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def wavelengths(self):
         return numpy.array(self._m['wavelengths'])
     
-    def _list_click(self):
-        return self._key_changed(None)
+    def _list_changed(self):
+        for i in range(self._data_list.count()):
+            item = self._data_list.item(i)
+            if item.isSelected():
+                self._key_changed(item.text())
+        pass
         
     def _key_changed(self, new_key):
         import re
@@ -256,3 +274,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def closeEvent(self, ce):
         self.fileQuit()
 
+    def fileSaveState(self):
+        import pickle
+        state = {
+            'f': self._f,
+            'k': self._current_key,
+            'hdv': self._view_widget.hicsdataview.get_state(),
+        }
+        
+        state_pickled = pickle.dumps(state)
+        
+        fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save state","","State files (*.viewstate)")
+        if fileName:
+            open(fileName, 'wb').write(state_pickled)
+        
+        
