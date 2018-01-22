@@ -32,17 +32,23 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     
     mouseMove = QtCore.pyqtSignal(object, float, float, float, bool, name='mouseMove')
     
-    def __init__(self, f):
+    def __init__(self, f=None, viewstate_f=None):
         QtWidgets.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Data file viewer")
         
-        if f.endswith('.viewstate'):
-            viewstate = pickle.load(open(f, 'rb'))
+        if viewstate_f is not None:
+            viewstate = pickle.load(open(viewstate_f, 'rb'))
             self._f = viewstate['f']
         else:
             viewstate = None
+            self._f = None
+            
+        if f is not None:
             self._f = f
+            
+        if self._f is None:
+            raise ValueError("An input file is required.")
             
         if self._f.startswith('http://') or self._f.startswith('https://'):
             self._m = httpdict(self._f)
