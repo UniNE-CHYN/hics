@@ -43,6 +43,8 @@ class AutoFocus(BaseImperativePlugin):
             print(key)
             if key == 'hics:framegrabber:frame':
                 matrix = pickle.loads(data)
+                crop_p = (matrix.shape[0] - (matrix.shape[0] * 0.6)) / 2
+                matrix = matrix[crop_p:-crop_p]
                 matrix_avg = numpy.average(matrix, 1)
             
                 m = (numpy.abs((matrix[1:] - matrix[:-1]))/matrix.mean()).sum()
