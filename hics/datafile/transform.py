@@ -85,7 +85,19 @@ if __name__ == '__main__':
         output_data[args.key+'-mnf'] = mnfimage
         
     if args.pca:
-        raise NotImplemented("PCA should be implemented")
+        import sklearn.decomposition
+        
+        pca = sklearn.decomposition.PCA(svd_solver='full', whiten=False)
+        image = output_data[args.key+'-filled']
+        mask = numpy.ma.masked_invalid(output_data[args.key]).mask.sum(2) < image.shape[2] // 2
+        imagef = numpy.reshape(image, (image.shape[0]*image.shape[1],image.shape[2]))
+        imageft = pca.fit_transform(imagef)
+        imaget = numpy.reshape(imageft,image.shape[:2]+imageft.shape[1:])
+        
+        pcaimage = numpy.ma.MaskedArray(imaget, numpy.repeat(~mask[:,:,numpy.newaxis],imaget.shape[2]))
+        
+        output_data[args.key+'-pca-transform'] = pca                                           
+        output_data[args.key+'-pca'] = pcaimage
         
     if not args.filled:
         del output_data[args.key+'-filled']
