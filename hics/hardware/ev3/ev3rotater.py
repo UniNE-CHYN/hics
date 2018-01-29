@@ -17,7 +17,7 @@ class EV3Rotater:
     def move_next(self, _dummy):
         """Move to the next position"""
         self._c += 10
-        m.run_to_abs_pos(position_sp=self._start_position+self._c*40,speed_sp=360,speed_regulation_enabled='on')
+        self._interface.run_to_abs_pos(position_sp=self._start_position+self._c*40,speed_sp=360,speed_regulation_enabled='on')
         
     @property
     def position(self):
