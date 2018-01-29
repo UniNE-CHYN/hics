@@ -14,7 +14,7 @@ class EV3Rotater:
         self._start_position = self._interface.position
         self._c = 0
         
-    def move_next(self):
+    def move_next(self, _dummy):
         """Move to the next position"""
         self._c += 10
         m.run_to_abs_pos(position_sp=self._start_position+self._c*40,speed_sp=360,speed_regulation_enabled='on')
@@ -65,7 +65,7 @@ class EV3RotaterRedisDaemon(EV3Rotater):
 
 
 if __name__ == '__main__':
-    import redis, argparse, redisrpc
+    import redis, argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis", help="Redis URL")
     args = parser.parse_args()
