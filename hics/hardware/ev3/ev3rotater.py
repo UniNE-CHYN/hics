@@ -7,7 +7,6 @@ import sys
 import math
 
 class EV3Rotater:
-    _factor = 1
     def __init__(self):
         self._interface = ev3dev.medium_motor()
         time.sleep(1)
@@ -32,9 +31,9 @@ class EV3Rotater:
         return moving
 
 
-class EV3RotaterRedisDaemon(EV3Scanner):
+class EV3RotaterRedisDaemon(EV3Rotater):
     def __init__(self, redis_conn):
-        EV3Scanner.__init__(self)
+        EV3Rotater.__init__(self)
         
         self._redis = redis_conn
         self._redis_notifier_state = RedisNotifier(self._redis, 'hics:rotater:state', (self, '_redis_rotater_state'))
