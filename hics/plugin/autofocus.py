@@ -18,6 +18,8 @@ class AutoFocus(BaseImperativePlugin):
     plugin_input_before = []
     plugin_input_before_captions = []
     
+    _area = 0.3
+    
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
         self._frame_rate = 100        
@@ -43,7 +45,7 @@ class AutoFocus(BaseImperativePlugin):
             print(key)
             if key == 'hics:framegrabber:frame':
                 matrix = pickle.loads(data)
-                crop_p = (matrix.shape[0] - (matrix.shape[0] * 0.6)) / 2
+                crop_p = (matrix.shape[0] - (matrix.shape[0] * self._area)) / 2
                 matrix = matrix[crop_p:-crop_p]
                 matrix_avg = numpy.average(matrix, 1)
             
