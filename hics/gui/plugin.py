@@ -169,9 +169,9 @@ class InputWindow:
             
             field_spec = self._fields[i].split(':', 1)
             if len(field_spec) == 1:
-                f = getattr(self, "get_field_{0}".format(field_spec[0]))('')
+                f = getattr(self, "get_field_{0}".format(field_spec[0]))(i, '')
             else:
-                f = getattr(self, "get_field_{0}".format(field_spec[0]))(field_spec[1])
+                f = getattr(self, "get_field_{0}".format(field_spec[0]))(i, field_spec[1])
             formlayout.setWidget(i, QtGui.QFormLayout.FieldRole, f)
             self._qt_fields.append(f)
         
@@ -193,8 +193,12 @@ class InputWindow:
                 field_qt.valueChanged.connect(functools.partial(self._input_changed, i))
         #QtCore.QMetaObject.connectSlotsByName(self._widget)
         
-    def get_field_integerspinbox(self, args):
+    def get_field_integerspinbox(self, input_id, args):
         sb_min, sb_max, sb_default = [int(x) for x in args.split(':')]
+        
+        default_override = self._parent_plugin._input_get(input_id)
+        if default_override is not None:
+            sb_default = int(default_override)
         
         sb = QtGui.QSpinBox(self._widget)
         sb.setMinimum(sb_min)
@@ -205,8 +209,12 @@ class InputWindow:
     def get_value_integerspinbox(self, field, args):
         return '{0}'.format(field.value()).encode('ascii')
     
-    def get_field_string(self, args):
+    def get_field_string(self, input_id, args):
         te_default = args
+        
+        default_override = self._parent_plugin._input_get(input_id)
+        if default_override is not None:
+            te_default = default_override.decode('utf8')
 
         te = QtGui.QTextEdit(self._widget)
         te.setText(te_default)
@@ -231,6 +239,7 @@ class InputWindow:
         else:
             value = getattr(self, "get_value_{0}".format(field_spec[0]))(field_qt, field_spec[1])
             
+        self._parent_plugin._input_save(input_id, value)
         self._parent_plugin._redis_client.publish(self._basekey + ':{0}'.format(input_id), value)
         
         
@@ -245,6 +254,7 @@ class InputWindow:
             else:
                 value = getattr(self, "get_value_{0}".format(field_spec[0]))(field_qt, field_spec[1])
                 
+            self._parent_plugin._input_save(i, value)
             self._parent_plugin._redis_client.publish(self._basekey + ':{0}'.format(i), value)
         
         self._widget.done(1)
@@ -280,7 +290,9 @@ class Plugin(QtCore.QObject):
             self._input = []
         self._input_before = self._redis_client.get('hics:plugin:{0}:input_before'.format(self._key)).decode('ascii').split(' ')
         if self._input_before == ['']:
-            self._input_before = []                
+            self._input_before = []
+            
+        self._input_saved = {}
         
         #Outputs
         self._outputs = []
@@ -483,5 +495,12 @@ class Plugin(QtCore.QObject):
             self.stopped()
         elif message == 'start':
             self.started()
+            
+    def _input_save(self, input_id, value):
+        self._input_saved[input_id] = value
+        
+    def _input_get(self, input_id):
+        return self._input_saved.get(input_id, None)
+    
         
         
