@@ -3,6 +3,7 @@ import numpy
 import time
 import redis
 import functools
+import os
 
 
 from .ui.mainwindow import Ui_MainWindow
@@ -29,7 +30,10 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
         
         self._plugins = {}
         
-        self._redis_url = settings.value('redis/url', 'redis://127.0.0.1:6379')
+        if 'REDIS_URL_OVERRIDE' in os.environ:
+            self._redis_url = os.environ['REDIS_URL_OVERRIDE']
+        else:
+            self._redis_url = settings.value('redis/url', 'redis://127.0.0.1:6379')
         
         self._redis_client = redis.from_url(self._redis_url)
         assert isinstance(self._redis_client, redis.client.Redis)
