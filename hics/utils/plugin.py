@@ -91,13 +91,18 @@ class BasePlugin:
         
         try:
             for item in self._pubsub.listen():
+                #Stop plugin if it is not running any more
+                if self.running and self.plugin_should_stop():
+                    self.__plugin_stop()
+                    
+                    
                 if item['type'] not in ('message', ):
                     continue
                 
                 channel = item['channel']
                 if type(channel) == bytes:
                     channel = channel.decode('ascii')
-                
+                    
                 message = item['data']
                 
                 if self._watchdog_expire_at is None or self._watchdog_refresh_at < time.time():
@@ -123,11 +128,11 @@ class BasePlugin:
                 
                 #Data from custom channel required by the plugin
                 if channel in self.plugin_listens:
-                    #otherwise ignore...
                     if self.running:
                         ret = self.data_received(channel, message)
                         if not ret:
                             self.__plugin_stop()
+                    #otherwise ignore...
                     continue
                 
                 #Now only plugin-specific message should remain
@@ -269,13 +274,18 @@ class BasePlugin:
             self._watchdog_expire_at = time.time() + expiration
             self._watchdog_refresh_at = time.time() + expiration / 2
         
-        
+    def plugin_should_stop(self):
+        #This can be overriden to stop the plugin if the thread(s) have ended
+        return False
         
     def start(self):
         raise NotImplementedError("Plugin should implement start()")
     
     def stop(self):
         raise NotImplementedError("Plugin should implement stop()")
+    
+    def data_received(self, channel, data):
+        raise NotImplementedError("Plugin should implement data_received()")
     
     def data_received(self, channel, data):
         raise NotImplementedError("Plugin should implement data_received()")
@@ -396,6 +406,9 @@ class BaseWorkerPlugin(BasePlugin):
 
     def data_received(self, channel, data):
         return self._work_thread is not None and self._work_thread.isAlive()
+    
+    def plugin_should_stop(self):
+        return not (self._work_thread is not None and self._work_thread.isAlive())
     
 class BaseImperativePlugin(BasePlugin):
     plugin_input = []
@@ -543,7 +556,9 @@ class BaseImperativePlugin(BasePlugin):
             if max_speed is None:
                 max_speed = 100000
             else:
-                max_speed = int(min_speed)
+                max_speed = int(max_speed)
+                
+        original_speed = int(self._redis_client.get('hics:scanner:velocity'))
                 
         tolerance = self._redis_client.get('hics:scanner:scanner_tolerance')
         if tolerance is None:
@@ -562,7 +577,11 @@ class BaseImperativePlugin(BasePlugin):
             moving, current_position = self.get_position()
             print(moving, current_position, target_position, max_speed)
             
+        self._redis_client.publish('hics:scanner:velocity', original_speed)
         return target_position
+    
+    def plugin_should_stop(self):
+        return not (self._work_thread is not None and self._work_thread.isAlive() )
             
 class BaseRecordPlugin(BaseImperativePlugin):
     def _flush_queue(self):

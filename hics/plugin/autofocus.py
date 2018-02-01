@@ -15,17 +15,18 @@ class AutoFocus(BaseImperativePlugin):
     plugin_listens = ['hics:framegrabber:frame', 'hics:focus:state', 'hics:focus:velocity']
     plugin_requires_lock = True
     
-    plugin_input_before = []
-    plugin_input_before_captions = []
+    plugin_input_before = ['integerspinbox:0:100:30']
+    plugin_input_before_captions = ['% range to use']
     
     _area = 0.3
     
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
-        self._frame_rate = 100        
+        self._frame_rate = 100
     
     def start(self):
         super().start()
+        self._area = int(self._input_before[0].decode('utf8').strip()) / 100
     
     def _run(self):
         pos_1 = int(self._redis_client.get('hics:focus:range_from'))

@@ -45,6 +45,7 @@ class LabelPrint(BaseImperativePlugin):
         sock.send(b'^DI'+struct.pack('<h', len(self._text)) + self._text.encode('ascii')) #Set data
         sock.send(b'^FF') #Print
         sock.close()
+        time.sleep(1)
         
         
     

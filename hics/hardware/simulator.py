@@ -284,6 +284,10 @@ class SimulatorFocus:
         self._simulator_target = self._simulator_position
         
     @property
+    def velocity(self):
+        return self._velocity
+        
+    @property
     def position(self):
         """Get current position"""
         return int(self._simulator_position)

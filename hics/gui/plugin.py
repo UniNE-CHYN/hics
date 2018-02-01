@@ -387,7 +387,7 @@ class Plugin(QtCore.QObject):
     
     def started(self):
         """Called when the plugin is started"""
-        assert self.state == 1
+        #assert self.state == 1
         
         self._qaction.setChecked(True)
         
@@ -433,7 +433,7 @@ class Plugin(QtCore.QObject):
                 self._mainwindow.lock()
             self.state = 3
             
-        assert self.state == 3
+        #assert self.state == 3
         
         self._qaction.setChecked(False)
                 
