@@ -309,6 +309,14 @@ class MainWindow(QtGui.QMainWindow, Ui_MainWindow):
             self.menuPlugins.clear()
             for action in sorted(new_menu_entries, key = lambda x:x.text()):
                 self.menuPlugins.addAction(action)
+                
+    @property
+    def _plugin_has_lock(self):
+        for v in self._plugins.values():
+            if v._requires_lock and v.state in (1, 2):
+                return True
+            
+        return False
 
     def _plugin_announce_received(self, k):
         expire_in = self._update_plugins_timer.interval() / 1000. * 5.

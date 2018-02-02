@@ -379,7 +379,7 @@ class Plugin(QtCore.QObject):
             
         #start
         self._redis_client.publish('hics:plugin:{0}'.format(self._key), 'start')
-        if self._requires_lock:
+        if not self._mainwindow._plugin_has_lock and self._requires_lock:
             #release lock
             self._mainwindow.unlock()
             
@@ -421,17 +421,17 @@ class Plugin(QtCore.QObject):
         
         self.state = 3
         
-        if self._requires_lock:
-            #acquire lock
-            self._mainwindow.lock()
+        #FIXME: is something needed here?
+        #if self._requires_lock:
+        #    #acquire lock
+        #    self._mainwindow.lock()
     
     def stopped(self):
         """Called when the plugin is stopped, and show the *after data"""
         if self.state in (1, 2):
-            if self._requires_lock:
-                #acquire lock
-                self._mainwindow.lock()
             self.state = 3
+            if not self._mainwindow._plugin_has_lock:
+                self._mainwindow.lock()
             
         #assert self.state == 3
         

@@ -578,6 +578,10 @@ class BaseImperativePlugin(BasePlugin):
             print(moving, current_position, target_position, max_speed)
             
         self._redis_client.publish('hics:scanner:velocity', original_speed)
+        #Force speed restore and wait...
+        while int(self._redis_client.get('hics:scanner:velocity')) != original_speed:
+            time.sleep(0.01)
+            
         return target_position
     
     def plugin_should_stop(self):
