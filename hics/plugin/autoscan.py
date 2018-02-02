@@ -55,14 +55,15 @@ class AutoScan(BaseImperativePlugin):
         self._workdir = os.path.join(self._folder, self._sample_id)
         if not os.path.isdir(self._workdir):
             os.mkdir(self._workdir)
-            
-        #We're cheating, we don't really require a lock
-        self._lock.release()
         
         super().start()
         
     def call_plugin(self, plugin_name, *args):
         assert all(type(a) == bytes for a in args)
+        if self._lock.lock_acquired:
+            #We're cheating, we don't really require a lock
+            self._lock.release()
+            
         for a_id, a in enumerate(args):
             self._redis_client.publish('hics:plugin:{}:input_before:{}'.format(plugin_name, a_id), a)
         self._redis_client.publish('hics:plugin:{}'.format(plugin_name), 'start')
@@ -75,6 +76,10 @@ class AutoScan(BaseImperativePlugin):
                 pl_name, pl_action = data.decode('utf8').split(':')
                 if pl_name in self._running_plugins and pl_action == 'stop':
                     self._running_plugins.remove(pl_name)
+                    
+        if not self._lock.lock_acquired:
+            #We're cheating, we don't really require a lock
+            self._lock.acquire()        
                     
     def _run(self):
         self._running_plugins = set()
