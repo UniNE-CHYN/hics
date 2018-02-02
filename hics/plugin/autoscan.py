@@ -108,6 +108,9 @@ class AutoScan(BaseImperativePlugin):
         self.call_plugin('record', *record_params)
         self.wait_for_plugins_completion()
         
+        self.call_plugin('photogrammetry', self._workdir.encode('utf8'))
+        self.wait_for_plugins_completion()        
+        
         
         if self._print_label:
             self.call_plugin('labelprint', b"192.168.1.6", b'1', b'N', self._sample_id.encode('ascii'))
