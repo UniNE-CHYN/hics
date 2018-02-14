@@ -24,10 +24,11 @@ if __name__ == '__main__':
         else:
             print(args.wlid)
             dispdata = numpy.ma.masked_invalid(input_data['hdr'][:, :, args.wlid])
+        ldispdata = numpy.log(dispdata)
         try:
-            plt.imshow(dispdata).write_png(args.mask, True)
+            plt.imshow(ldispdata, cmap='gray', clim=(numpy.percentile(ldispdata, 1), numpy.percentile(ldispdata, 99))).write_png(args.mask, True)
         except TypeError:
-            plt.imshow(dispdata).write_png(args.mask)
+            plt.imshow(ldispdata, cmap='gray', clim=(numpy.percentile(ldispdata, 1), numpy.percentile(ldispdata, 99))).write_png(args.mask)
             
         sys.exit(0)
     
