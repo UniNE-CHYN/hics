@@ -34,11 +34,11 @@ def remove_continous(wavelengths, sp, niter=100):
     return (sp / spconv), spconv
 
 def remove_continuous_job(a):
-    y, input_data, output_data = a
+    y, input_data, output_data, key = a
     
     
-    hdrdata = output_data['hdr']
-    hdrdata_conv = output_data['hdr-cont']
+    hdrdata = output_data[key]
+    hdrdata_conv = output_data[key+'-cont']
     wavelengths = output_data['wavelengths']
     
     
@@ -55,9 +55,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()    
     parser.add_argument('--input', help = 'input file (reflectance file)', required = True)
     parser.add_argument('--output', help = 'output file (hdr file)', required=True)
-    parser.add_argument('--method', help = 'normalization method', choices=['percentile', 'removecont'], default='percentile')
+    parser.add_argument('--method', help = 'normalization method', choices=['percentile', 'removecont', 'whiten'], default='percentile')
     parser.add_argument('--percentile', help = 'normalization percentile', type=int, default=90)
     parser.add_argument('--wlfilter', help = 'filter wavelengths', type=str)
+    parser.add_argument('--key', default='hdr', help = 'key to normalize', type=str)
     
     args = parser.parse_args()
     
@@ -71,18 +72,22 @@ if __name__ == '__main__':
         
     
     if args.method == 'percentile':
-        intensities = numpy.nanpercentile(numpy.ma.masked_invalid(input_data['hdr'][:, :, wlfilter]).filled(numpy.nan),args.percentile,2)[:,:,numpy.newaxis]
-        output_data['hdr'] = input_data['hdr'][:, :, wlfilter] / intensities
-        if 'hdr-var' in input_data.keys():
-            output_data['hdr-var'] = input_data['hdr-var'][:, :, wlfilter] / (intensities ** 2)
+        intensities = numpy.nanpercentile(numpy.ma.masked_invalid(input_data[args.key][:, :, wlfilter]).filled(numpy.nan),args.percentile,2)[:,:,numpy.newaxis]
+        output_data[args.key] = input_data[args.key][:, :, wlfilter] / intensities
+        if args.key+'-var' in input_data.keys():
+            output_data[args.key+'-var'] = input_data[args.key+'-var'][:, :, wlfilter] / (intensities ** 2)
+    elif args.method == 'whiten':
+        data = numpy.ma.masked_invalid(input_data[args.key][:, :, wlfilter])
+        
+        output_data[args.key] = ((data - data.mean(2, keepdims=True)) / data.std(2, keepdims=True)).filled(numpy.nan)
     elif args.method == 'removecont':
-        output_data['hdr'] = input_data['hdr'][:, :, wlfilter]
-        output_data['hdr-cont'] = input_data['hdr'][:, :, wlfilter]
-        hdrdata = output_data['hdr']
+        output_data[args.key] = input_data[args.key][:, :, wlfilter]
+        output_data[args.key+'-cont'] = input_data[args.key][:, :, wlfilter]
+        hdrdata = output_data[args.key]
         
         import multiprocessing, itertools
         pool = multiprocessing.Pool(processes=hics.utils.datafile.get_cpu_count())
         
-        args = itertools.product(range(hdrdata.shape[0]), [input_data], [output_data])
+        args = itertools.product(range(hdrdata.shape[0]), [input_data], [output_data], [args.key])
         
         pool.map(remove_continuous_job, args)

@@ -119,7 +119,7 @@ class HicsData:
             data = data.transpose(transpose_axes)
             
             if len(return_axes_order) != len(return_axes_all):
-                data = getattr(data, self._avg_func)(axis=tuple(range(len(return_axes_order), len(return_axes_all))))
+                data = getattr(numpy.ma.masked_invalid(data), self._avg_func)(axis=tuple(range(len(return_axes_order), len(return_axes_all))))
             
         if hasattr(data, 'mask'):
             return data
