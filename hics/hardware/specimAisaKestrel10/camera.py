@@ -6,6 +6,7 @@ import pickle
 import scipy.ndimage
 import ctypes
 import struct
+import serial
 
 from hics.utils.redis import RedisLink, RedisNotifier
 
@@ -165,15 +166,18 @@ class AisaKestrelCamera:
         
     @property
     def shutter_open(self):
-        #FIXME!!!
+        #FIXME: it would be nice to read the status...
         return self._shutter_open
     
     @shutter_open.setter
     def shutter_open(self, new_shutter_open):
-        #FIXME!!!
         new_shutter_open = self._to_bool(new_shutter_open)
         self._shutter_open = {True: 1, False: 0}[new_shutter_open]
-        
+        if self._shutter_open:
+            self._system._shutter_serial.write(bytes([0xa5,0xd2,0x77,0x12,0x00,0x00,0x00,0x02,0x10]))
+        else:
+            self._system._shutter_serial.write(bytes([0xa5,0xd2,0x77,0x12,0x00,0x00,0x00,0x01,0x13]))
+            
     @property
     def shutter_latency(self):
         return self._shutter_latency
@@ -192,7 +196,7 @@ class AisaKestrelCamera:
     
     @property
     def integration_time_max(self):
-        return 200000
+        return 1000000
         
     @property
     def nuc(self):
@@ -232,6 +236,8 @@ class AisaKestrelSystem(threading.Thread):
         if self._epix.pxd_PIXCIopen(b"",b"",args.fmt.encode('ascii')) != 0:
             self._epix.pxd_mesgFault(1)
             sys.exit(1)
+            
+        self._shutter_serial = serial.Serial(port=args.shutter, baudrate=115200,timeout=1)
         
         self._camera = AisaKestrelCamera(self)
         self._framegrabber = AisaKestrelFramegrabber(self)
@@ -255,8 +261,9 @@ class AisaKestrelSystem(threading.Thread):
         return self._continue
     
 def add_arguments(parser):
-	parser.add_argument('--xclib', help='EPIX XCLIB path', default="C:\\Program Files\\Specim\\Lumo - Recorder\\2018_512\\XCLIBW64.dll")
-	parser.add_argument('--fmt', help='EPIX format file', default="C:\\Users\\Public\\Documents\\Specim\\External\\Epix\\Specim_Kestrel10.fmt")
+    parser.add_argument('--xclib', help='EPIX XCLIB path', default="C:\\Program Files\\Specim\\Lumo - Recorder\\2018_512\\XCLIBW64.dll")
+    parser.add_argument('--fmt', help='EPIX format file', default="C:\\Users\\Public\\Documents\\Specim\\External\\Epix\\Specim_Kestrel10.fmt")
+    parser.add_argument('--shutter', help='Shutter serial port', default="COM4")
     
 def launch(redis_client, args):
     aks = AisaKestrelSystem(redis_client, args)
