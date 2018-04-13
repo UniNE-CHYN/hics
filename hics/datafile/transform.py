@@ -1,4 +1,5 @@
 import hics.utils.datafile
+import numpy
 
 def fill_holes(image):
     """Fill holes of 2D hyperspectral image by using spatial linear interpolation"""
