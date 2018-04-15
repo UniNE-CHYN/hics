@@ -14,6 +14,10 @@ class EV3Scanner:
         self._interface.duty_cycle_sp = 100
         self._interface.stop_command = 'hold'
         
+        self._interface.speed_sp=360
+        self._interface.speed_regulation_enabled='on'
+        self._interface.duty_cycle_sp = 100
+        
         #10000 around the center is usually more than enough
         self._range_from = -10000
         self._range_to = 10000
@@ -48,16 +52,16 @@ class EV3Scanner:
     @property
     def velocity(self):
         """Get maximal velocity"""
-        return int(self._interface.duty_cycle_sp)
+        return int(self._interface.speed_sp)
 
     @velocity.setter
     def velocity(self, new_velocity):
         """Set maximal velocity"""
-        self._interface.duty_cycle_sp = int(new_velocity)
+        self._interface.speed_sp = int(new_velocity)
         
     @property
     def velocity_max(self):
-        return 100
+        return 360
     
     @property
     def velocity_min(self):
