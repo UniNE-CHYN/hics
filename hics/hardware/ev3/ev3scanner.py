@@ -17,7 +17,7 @@ class EV3Scanner:
         #10000 around the center is usually more than enough
         self._range_from = -10000
         self._range_to = 10000
-        self.velocity_max = 40 * self._factor
+        self.velocity = 40
         
         time.sleep(1)
 
@@ -89,21 +89,21 @@ class EV3Scanner:
         
     @property
     def scanner_limit_slow(self):
-        return 20 * self._factor
+        return 20
     
     @scanner_limit_slow.setter
     def scanner_limit_slow(self, newvalue):
         pass  #dummy setter
     @property
     def scanner_limit_fast(self):
-        return 100 * self._factor
+        return 100
     @scanner_limit_fast.setter
     def scanner_limit_fast(self, newvalue):
         pass  #dummy setter
     
     @property
     def scanner_tolerance(self):
-        return 100 * self._factor
+        return 100
     @scanner_tolerance.setter
     def scanner_tolerance(self, newvalue):
         pass  #dummy setter
@@ -160,4 +160,3 @@ if __name__ == '__main__':
         pass
     finally:
         scanner.stop()
-        
