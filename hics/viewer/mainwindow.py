@@ -1,7 +1,7 @@
 
 from PyQt5 import QtCore, QtWidgets
 
-from mmappickle import mmapdict, httpdict
+from mmappickle import mmapdict
 
 import numpy
 import pprint

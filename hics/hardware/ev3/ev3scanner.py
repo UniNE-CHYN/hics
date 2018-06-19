@@ -14,7 +14,6 @@ class EV3Scanner:
         self._interface.duty_cycle_sp = 100
         self._interface.stop_command = 'hold'
         
-        self._interface.speed_sp=360
         self._interface.speed_regulation_enabled='on'
         self._interface.duty_cycle_sp = 100
         
@@ -27,7 +26,7 @@ class EV3Scanner:
 
     def move_absolute(self, new_position):
         """Move scanner to some absolute position"""
-        self._interface.run_to_abs_pos(position_sp = int(new_position))
+        self._interface.run_to_abs_pos(position_sp = int(new_position), speed_regulation_enabled='on')
         
         
         

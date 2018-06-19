@@ -33,10 +33,10 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
         (u'--redis redis://130.125.10.26',
          '')),
                       loc('hics/datafile/calibrate.py'): ('project',
-        (u'--input /media/laurent/T5/migrate_library/20160624_jakobsberg/20160624094408.scan --output /tmp/out.refl --max 16000',
+        (u'--input /media/laurent/T5/collection/Bg/A.scan --output /media/laurent/T5/collection/Bg/A.calibrated --max 12000\n',
          '')),
                       loc('hics/datafile/merge.py'): ('project',
-        (u'--input /media/laurent/T5/migrate_library/unige/ER-146-F.calibrated --output /media/laurent/T5/migrate_library/unige/ER-146-F.hdr',
+        (u'--input /media/laurent/T5/collection/Bg/A.calibrated --output /media/laurent/T5/collection/Bg/A.hdr\n',
          '')),
                       loc('hics/datafile/mergecorr.py'): ('project',
         (u'--input /media/laurent/T5/migrate_library/unige/ER-146-F.calibrated --output /tmp/ER-146-F.hdr --psx 128 --psy 32 --ppx 0.5 --ppy 0 1\n',
@@ -83,4 +83,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/viewer/mainwindow.py'): ('project',
         (u'/data/scans/notice_rdf.calibrated',
          ''))}
-proj.main-file = loc('hics/plugin/autoscan.py')
+proj.main-file = loc('hics/datafile/merge.py')
