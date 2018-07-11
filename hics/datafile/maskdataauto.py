@@ -2,6 +2,7 @@ import scipy.ndimage
 from mmappickle import mmapdict
 import numpy
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 import hics.utils.datafile
 
 class AutoMaskAlgorithm:
@@ -21,7 +22,7 @@ class AutoMaskAlgorithm:
         self._mpl_mask_im[:, :, 0] = 1
         self._mpl_mask = ax.imshow(self._mpl_mask_im)
 
-    def mpl_update_plot(self):
+    def mpl_update_plot(self, ax):
         #Update mask (alpha channel)
         self._mpl_mask_im[:, :, 3] = (self.get_mask() == 0) * 0.2
         self._mpl_mask.set_data(self._mpl_mask_im)
@@ -85,8 +86,8 @@ class SimplyConnectedDistanceAutoMaskAlgorithm(AutoMaskAlgorithm):
         super().mpl_init_structures(ax)
         self._mpl_maskpoints, = ax.plot([], [], 'o', picker=5)
 
-    def mpl_update_plot(self):
-        super().mpl_update_plot()
+    def mpl_update_plot(self, ax):
+        super().mpl_update_plot(ax)
 
         #Update maskpoints
         self._mpl_maskpoints.set_data([x[0] for x in self._maskspec], [x[1] for x in self._maskspec])
@@ -198,8 +199,8 @@ class NearestMaskAlgorithm(AutoMaskAlgorithm):
         self._mpl_maskpoints_in, = ax.plot([], [], 'ob', picker=5)
         self._mpl_maskpoints_out, = ax.plot([], [], 'or', picker=5)
 
-    def mpl_update_plot(self):
-        super().mpl_update_plot()
+    def mpl_update_plot(self, ax):
+        super().mpl_update_plot(ax)
 
         #Update maskpoints
         self._mpl_maskpoints_in.set_data([x[0] for x in self._maskspec if x[2]], [x[1] for x in self._maskspec if x[2]])
@@ -255,19 +256,13 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
         gr = numpy.gradient(self._norm_data, axis=(0, 1))
         gr_n = numpy.sqrt(gr[0]**2+gr[1]**2)
         gr_d = numpy.arctan2(gr[0], gr[1])
-        gradient_magnitude = numpy.linalg.norm(gr_n, 2, axis=2)
-
-        mg=numpy.array(numpy.meshgrid(numpy.arange(gradient_magnitude.shape[0]), numpy.arange(gradient_magnitude.shape[1]), indexing='ij'))
-
-        center = [160, 135]
-        mg -= numpy.array(center)[:, numpy.newaxis, numpy.newaxis]
-        mg = numpy.sqrt(mg[0, :, :] ** 2 + mg[1, :, :] ** 2)
+        self._gradient_magnitude = numpy.linalg.norm(gr_n, 2, axis=2)
 
         if maskspec is None:
             self._maskspec = []
         elif type(maskspec) == list:
-            if type(maskspec)[0] == str:
-                maskspec = [x.split(',') for x in args.maskspec]
+            if type(maskspec[0]) == str:
+                maskspec = [numpy.reshape([float(y) for y in x.split(',')], (-1, 3)) for x in args.maskspec]
                 pass
             self._maskspec = maskspec
 
@@ -275,14 +270,104 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
     def mpl_init_structures(self, ax):
         super().mpl_init_structures(ax)
 
-    def mpl_update_plot(self):
-        super().mpl_update_plot()
+        self._points_artists = []
+
+        self._cursor = mpl.patches.Circle((10, 10), radius=10, alpha=0.5, color='r')
+        ax.add_artist(self._cursor)
+
+
+    def mpl_update_plot(self, ax):
+        super().mpl_update_plot(ax)
+
+        npts = sum([0]+[x.shape[0	] for x in self._maskspec])
+        while len(self._points_artists) < npts:
+            ptsartist = mpl.patches.Circle((0, 0), radius=0, alpha=0.2, color='g')
+            ax.add_artist(ptsartist)
+            self._points_artists.append(ptsartist)
+
+        while len(self._points_artists) > npts:
+            ax.remove_artist(self._points_artists.pop(-1))
+
+        artidx = 0
+        for ms in self._maskspec:
+            for p in ms:
+                pa = self._points_artists[artidx]
+                artidx += 1
+                pa.center = p[:2]
+                pa.radius = numpy.abs(p[2])
+                if pa.radius < 0:
+                    pa.set_color('r')
+                else:
+                    pa.set_color('b')
 
     def get_mask(self):
-        return numpy.zeros(self._data.shape[:2])
+        if getattr(self, '_mask_cache', None) is not None:
+            return self._mask_cache
+        for ms in self._maskspec:
+            ms_mask = numpy.zeros(self._data.shape[:2])
+            ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
+            for p1, p2 in zip(ms_cycled[1:], ms_cycled[:-1]):
+                p_mask = numpy.zeros(self._data.shape[:2])
+                mg = numpy.array(numpy.meshgrid(numpy.arange(self._data.shape[0]), numpy.arange(self._data.shape[1]), indexing='ij')).astype(numpy.float)
+
+                center = p1[:2][::-1]
+                mg1 = mg - numpy.array(center)[:, numpy.newaxis, numpy.newaxis]
+                p_mask = numpy.logical_or(p_mask, numpy.sqrt(mg1[0, :, :] ** 2 + mg1[1, :, :] ** 2) <p1[2])
+
+                center = p2[:2][::-1]
+                mg2 = mg - numpy.array(center)[:, numpy.newaxis, numpy.newaxis]
+                p_mask = numpy.logical_or(p_mask, numpy.sqrt(mg2[0, :, :] ** 2 + mg2[1, :, :] ** 2) <p2[2])
+
+                import skimage, skimage.morphology
+                ms_mask = numpy.logical_or(ms_mask, skimage.morphology.convex_hull_image(p_mask))
+
+            #Compute active_contour
+            #contour_image = self.get_mask()*self._gradient_magnitude
+            contour_image = ms_mask*self._gradient_magnitude
+
+            s = numpy.linspace(0, 2*numpy.pi, 400)
+            x = 200 + 200*numpy.cos(s)
+            y = 200 + 200*numpy.sin(s)
+            init = numpy.array([x, y]).T
+
+            init = []
+            ms = self._maskspec[0]
+            ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
+            for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
+                xs = numpy.linspace(p1[0], p2[0], 10)[:-1]
+                ys = numpy.linspace(p1[1], p2[1], 10)[:-1]
+                init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis]], 1))
+
+            init = numpy.concatenate(init, 0)
+
+            snake=skimage.segmentation.active_contour(contour_image, init, w_line=1, w_edge=0, bc='periodic', max_iterations=20000, convergence=0.5)
+
+            plt.imshow(contour_image)
+            plt.plot(ms[:, 0], ms[:, 1], '--g', lw=3)
+            plt.plot(init[:, 0], init[:, 1], '--r', lw=3)
+            plt.plot(snake[:, 0], snake[:, 1], '-+b', lw=3)
+            plt.show()
+
+
+
+        self._mask_cache = ms_mask
+        return ms_mask
 
     def mpl_on_motion(self, event):
-        pass
+        if event.inaxes is None:
+            return
+        self._cursor.center = event.xdata, event.ydata
+        return True
+
+    def mpl_on_scroll(self, event):
+        if event.button == 'up':
+            self._cursor.radius += 1
+            return True
+        else:
+            if self._cursor.radius > 1:
+                self._cursor.radius -= 1
+                return True
+
 
     def mpl_on_press(self, event):
         import IPython
@@ -316,6 +401,7 @@ class AutomaskGUI:
         fig.canvas.mpl_connect('button_press_event', self._mpl_on_press)
         fig.canvas.mpl_connect('button_release_event', self._mpl_on_release)
         fig.canvas.mpl_connect('motion_notify_event', self._mpl_on_motion)
+        fig.canvas.mpl_connect('scroll_event', self._mpl_on_scroll)
 
         self._mpl_fig = fig
         self._mpl_update_plot()
@@ -346,11 +432,16 @@ class AutomaskGUI:
         if self._automask_algorithm.mpl_on_motion(event):
             self._mpl_update_plot()
 
+    def _mpl_on_scroll(self, event):
+        if self._automask_algorithm.mpl_on_scroll(event):
+            self._mpl_update_plot()
+
 
 
     def _mpl_update_plot(self):
-        self._automask_algorithm.mpl_update_plot()
-        self._mpl_fig.canvas.draw()
+        self._automask_algorithm.mpl_update_plot(self._mpl_fig.axes[0])
+        self._mpl_fig.canvas.toolbar.set_cursor = lambda cursor: None
+        self._mpl_fig.canvas.draw_idle()
 
 
 if __name__ == '__main__':
@@ -362,6 +453,7 @@ if __name__ == '__main__':
     parser.add_argument('--maskspec', help = 'Mask specification', metavar='maskspec', nargs='+', required=False)
     parser.add_argument('--method', help='Method to use', choices=('click', 'clickdrag', 'topo'), default='click')
     parser.add_argument('--nocrop', help = 'Do not crop output', action='store_true')
+    parser.add_argument('--edit', help = 'Force edit', action='store_true')
 
     args = parser.parse_args()
 
@@ -376,7 +468,7 @@ if __name__ == '__main__':
 
 
 
-    if args.maskspec is None:
+    if args.maskspec is None or args.edit:
         #Run in interactive mode...
         am = AutomaskGUI(algo)
 

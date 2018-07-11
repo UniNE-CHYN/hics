@@ -35,6 +35,9 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/datafile/calibrate.py'): ('project',
         (u'--input /media/laurent/T5/collection/Bg/A.scan --output /media/laurent/T5/collection/Bg/A.calibrated --max 12000\n',
          '')),
+                      loc('hics/datafile/maskdataauto.py'): ('project',
+        (u'--input /media/hyspec_collection/0112/A.hdr --output /tmp/out.mhdr --method topo --edit --maskspec 87,248,10,140,278,10,287,277,10,355,224,10,333,143,15,335,75,20,203,22,20,148,78,15,160,115,10,138,128,10\n',
+         '')),
                       loc('hics/datafile/merge.py'): ('project',
         (u'--input /media/laurent/T5/collection/Bg/A.calibrated --output /media/laurent/T5/collection/Bg/A.hdr\n',
          '')),
@@ -83,4 +86,4 @@ proj.launch-config = {loc('hics/daemon/frameconverter.py'): ('project',
                       loc('hics/viewer/mainwindow.py'): ('project',
         (u'/data/scans/notice_rdf.calibrated',
          ''))}
-proj.main-file = loc('hics/datafile/merge.py')
+proj.main-file = loc('hics/datafile/maskdataauto.py')
