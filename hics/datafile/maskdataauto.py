@@ -255,9 +255,119 @@ class NearestMaskAlgorithm(AutoMaskAlgorithm):
         #return False
 
 class CircularSnakeOptimizer:
+    _distance_exponent = 1.1
+    _pixel_exponent = 1.5
+
     def __init__(self, snake, image):
-        self._snake = snake
+        self._snake_init = snake.copy()
+        self._snake = snake.copy()
         self._image = image
+
+    @property
+    def score(self):
+        return self.score_for_snake(self._snake)
+
+    @property
+    def distance(self):
+        return self.distance_for_snake(self._snake)
+
+    @property
+    def fitness(self):
+        return self.fitness_for_score_and_distance(self.score, self.distance)
+
+
+    def fitness_for_score_and_distance(self, score, distance):
+        return score / (distance ** self._distance_exponent)
+
+    @staticmethod
+    def cycled(d):
+        return numpy.concatenate([d, d[0:1, ...]], 0)
+
+    def distance_for_snake(self, snake, cycled=True):
+        if cycled:
+            snake_cycled = CircularSnakeOptimizer.cycled(snake)
+        else:
+            snake_cycled = snake
+        dist = 0
+        for p0, p1 in zip(snake_cycled[:-1], snake_cycled[1:]):
+            dist += numpy.linalg.norm(p1[:2]-p0[:2])
+        return dist
+
+    def score_for_snake(self, current_snake, cycled=True):
+        if cycled:
+            current_snake_cycled = CircularSnakeOptimizer.cycled(current_snake)
+        else:
+            current_snake_cycled = current_snake
+
+        score = 0
+        for p0, p1 in zip(current_snake_cycled[:-1], current_snake_cycled[1:]):
+            x0, y0, z0 = p0
+            x1, y1, z1 = p1
+
+            length = int(numpy.hypot(x1-x0, y1-y0))
+            x, y = numpy.linspace(x0, x1, length), numpy.linspace(y0, y1, length)
+            pixels = self._image[y.astype(numpy.int), x.astype(numpy.int)]
+            if numpy.any(pixels<=0):
+                return 0
+
+            score += (pixels ** self._pixel_exponent).sum()
+        return score
+
+    def optimize(self, steps, simul_move=3, random_ratio=0.5):
+        distance = self.distance_for_snake(self._snake)
+        score = self.score_for_snake(self._snake)
+        fitness = self.fitness_for_score_and_distance(score, distance)
+
+        for step_id in range(steps):
+
+            initial_position = numpy.random.randint(0, self._snake.shape[0])
+            old_snake_part = []
+            new_snake_part = []
+            for p_id in range(simul_move+2):
+                p_idx = (p_id + initial_position) % self._snake.shape[0]
+                old_snake_part.append(self._snake[p_idx, :])
+
+                #Don't move the ends
+                if p_id == 0 or p_id == simul_move + 1:
+                    new_snake_part.append(self._snake[p_idx, :])
+                else:
+                    new_pos = numpy.array([-1, -1])
+                    while numpy.any(new_pos <0) or \
+                          numpy.any(new_pos>numpy.array([self._image.shape[1], self._image.shape[0]])) or \
+                          self._image[new_pos[1], new_pos[0]] <= 0:
+                        new_pos = numpy.random.normal(self._snake[p_idx, :2], self._snake[p_idx, 2]*random_ratio).astype(numpy.int)
+
+                    new_snake_part.append(numpy.array([new_pos[0], new_pos[1], self._snake[p_idx, 2]]))
+
+            new_distance = distance - self.distance_for_snake(old_snake_part, cycled=False) + self.distance_for_snake(new_snake_part, cycled=False)
+            new_snake_part_score = self.score_for_snake(new_snake_part, cycled=False)
+            if new_snake_part_score == 0:
+                new_score = 0
+            else:
+                new_score = score - self.score_for_snake(old_snake_part, cycled=False) + new_snake_part_score
+            new_fitness = self.fitness_for_score_and_distance(new_score, new_distance)
+
+            if False:
+                #Checks
+                new_snake = self._snake.copy()
+                for p_id, new_p in enumerate(new_snake_part):
+                    p_idx = (p_id + initial_position) % self._snake.shape[0]
+                    new_snake[p_idx, :] = new_p
+
+                assert numpy.abs(self.distance_for_snake(new_snake) - new_distance) < 0.01
+                assert numpy.abs(self.score_for_snake(new_snake) - new_score) < 0.01
+
+                print(fitness, new_fitness, new_distance, new_score)
+            if new_fitness > fitness:
+                for p_id, new_p in enumerate(new_snake_part):
+                    p_idx = (p_id + initial_position) % self._snake.shape[0]
+                    self._snake[p_idx, :] = new_p
+
+                distance = new_distance
+                score = new_score
+                fitness = new_fitness
+
+
 
 
 
@@ -285,6 +395,9 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
         super().mpl_init_structures(ax)
 
         self._points_artists = []
+
+        self._cso_orig, = plt.plot([], [], '--r', lw=3)
+        self._cso_opt, = plt.plot([], [], '-+b', lw=3)
 
         self._cursor = mpl.patches.Circle((10, 10), radius=10, alpha=0.5, color='r')
         ax.add_artist(self._cursor)
@@ -340,98 +453,6 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
                 import skimage, skimage.morphology
                 ms_mask = numpy.logical_or(ms_mask, skimage.morphology.convex_hull_image(p_mask))
 
-            if False:
-                #Compute active_contour
-                contour_image = self.get_mask()*self._gradient_magnitude
-                contour_image /= contour_image.max()
-                #contour_image = ms_mask*self._gradient_magnitude
-
-                npts = 10
-
-                init = []
-                ms = self._maskspec[0]
-                ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
-                for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
-                    xs = numpy.linspace(p1[0], p2[0], npts)[:-1]
-                    ys = numpy.linspace(p1[1], p2[1], npts)[:-1]
-                    zs = numpy.linspace(p1[2], p2[2], npts)[:-1]
-                    init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], zs[:, numpy.newaxis]], 1))
-
-                init = numpy.concatenate(init, 0)
-
-                #CircularSnakeOptimizer(init, contour_image)
-
-                #Random walk
-                simul_move = 3
-                current_snake = init.copy()
-                old_snake_score = 0
-
-                #for i in range(npts*init.shape[0]*10):
-                while True:
-                    current_snake_cycled = numpy.concatenate([current_snake, current_snake[0:1, ...]], 0)
-                    current_snake_score = 0
-                    current_snake_dist = 0
-                    x_tot = []
-                    y_tot = []
-                    for p0, p1 in zip(current_snake_cycled[:-1], current_snake_cycled[1:]):
-                        x0, y0, z0 = p0
-                        x1, y1, z1 = p1
-
-                        current_snake_dist += numpy.linalg.norm(p1[:2]-p0[:2])
-
-                        length = int(numpy.hypot(x1-x0, y1-y0))
-                        x, y = numpy.linspace(x0, x1, length), numpy.linspace(y0, y1, length)
-                        x_tot.append(x)
-                        y_tot.append(y)
-
-                    x_tot = numpy.concatenate(x_tot).astype(numpy.int)
-                    y_tot = numpy.concatenate(y_tot).astype(numpy.int)
-                    dup_check = list(set([tuple(x) for x in numpy.array([x_tot, y_tot]).T]))
-                    x_tot = [x[0] for x in dup_check]
-                    y_tot = [x[1] for x in dup_check]
-                    path_pixels = contour_image[y_tot, x_tot]
-                    if numpy.any(path_pixels<=0):
-                        #Invalid pixels?
-                        current_snake_score = 0
-                    else:
-                        current_snake_score += path_pixels.sum()
-                        current_snake_score /= (current_snake_dist ** 1.5)
-                    # if current_snake_score > 0:
-                        # #Remove score depending on the angles
-                        # for p0, p1, p2 in zip(current_snake_cycled[:-2], current_snake_cycled[1:-1], current_snake_cycled[2:]):
-                            # ba = p1[:2] - p0[:2]
-                            # bc = p1[:2] - p2[:2]
-
-                            # cosine_angle = numpy.dot(ba, bc) / (numpy.linalg.norm(ba) * numpy.linalg.norm(bc))
-                            # angle = numpy.degrees(numpy.arccos(cosine_angle)) / 180
-                            # current_snake_score -= angle
-
-                    if current_snake_score < old_snake_score:
-                        current_snake = old_snake.copy()
-                        current_snake_score = old_snake_score
-
-                    assert current_snake_score > 0
-
-                    old_snake = current_snake.copy()
-                    old_snake_score = current_snake_score
-
-                    initial_position = numpy.random.randint(0, current_snake.shape[0])
-                    for p_id in range(simul_move):
-                        p_idx = (p_id + initial_position) % current_snake.shape[0]
-                        new_pos = numpy.array([-1, -1])
-                        while numpy.any(new_pos <0) or numpy.any(new_pos>numpy.array([contour_image.shape[1], contour_image.shape[0]])) or contour_image[new_pos[1], new_pos[0]] <= 0:
-                            new_pos = numpy.random.normal(current_snake[p_idx, :2], current_snake[p_idx, 2]/3).astype(numpy.int)
-                        current_snake[p_idx, :2] = new_pos
-
-
-                    print(current_snake_score)
-
-                plt.imshow(contour_image)
-                plt.plot(ms[:, 0], ms[:, 1], '--g', lw=3)
-                plt.plot(init[:, 0], init[:, 1], '--r', lw=3)
-                plt.plot(current_snake[:, 0], current_snake[:, 1], '-+b', lw=3)
-                plt.show()
-
             if ms[0][2] > 0:
                 global_mask = numpy.logical_or(global_mask, ms_mask)
             else:
@@ -468,8 +489,31 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
             self._clear_mask_cache()
 
     def mpl_on_key_press(self, event):
-        import IPython
-        IPython.embed()
+
+        contour_image = self.get_mask()*self._gradient_magnitude
+        contour_image /= contour_image.max()
+
+        npts = 10
+
+        init = []
+        ms = self._maskspec[0]
+        ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
+        for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
+            xs = numpy.linspace(p1[0], p2[0], npts)[:-1]
+            ys = numpy.linspace(p1[1], p2[1], npts)[:-1]
+            zs = numpy.linspace(p1[2], p2[2], npts)[:-1]
+            init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], zs[:, numpy.newaxis]], 1))
+
+        init = numpy.concatenate(init, 0)
+
+        if getattr(self, 'cso', None) is None:
+            self.cso = CircularSnakeOptimizer(init, contour_image)
+        self.cso.optimize(4000, 3, 0.2)
+
+        if True:
+            self._cso_orig.set_data(self.cso._snake_init[:, 0], self.cso._snake_init[:, 1])
+            self._cso_opt.set_data(self.cso._snake[:, 0], self.cso._snake[:, 1])
+            plt.draw()
 
 
     def mpl_on_release(self, event):
