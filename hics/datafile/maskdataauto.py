@@ -4,6 +4,7 @@ import numpy
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 import hics.utils.datafile
+import skimage.segmentation
 
 class AutoMaskAlgorithm:
     def __init__(self, data, maskspec):
@@ -37,6 +38,12 @@ class AutoMaskAlgorithm:
         pass
 
     def mpl_on_release(self, event):
+        pass
+
+    def mpl_on_key_press(self, event):
+        pass
+
+    def mpl_on_key_release(self, event):
         pass
 
 
@@ -247,6 +254,13 @@ class NearestMaskAlgorithm(AutoMaskAlgorithm):
         return self.mpl_on_press(event)
         #return False
 
+class CircularSnakeOptimizer:
+    def __init__(self, snake, image):
+        self._snake = snake
+        self._image = image
+
+
+
 class TopoMaskAlgorithm(AutoMaskAlgorithm):
     def __init__(self, data, maskspec):
         super().__init__(data, maskspec)
@@ -300,9 +314,14 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
                 else:
                     pa.set_color('b')
 
+    def _clear_mask_cache(self):
+        self._mask_cache = None
+
     def get_mask(self):
         if getattr(self, '_mask_cache', None) is not None:
             return self._mask_cache
+
+        global_mask = numpy.zeros(self._data.shape[:2])
         for ms in self._maskspec:
             ms_mask = numpy.zeros(self._data.shape[:2])
             ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
@@ -321,37 +340,107 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
                 import skimage, skimage.morphology
                 ms_mask = numpy.logical_or(ms_mask, skimage.morphology.convex_hull_image(p_mask))
 
-            #Compute active_contour
-            #contour_image = self.get_mask()*self._gradient_magnitude
-            contour_image = ms_mask*self._gradient_magnitude
+            if False:
+                #Compute active_contour
+                contour_image = self.get_mask()*self._gradient_magnitude
+                contour_image /= contour_image.max()
+                #contour_image = ms_mask*self._gradient_magnitude
 
-            s = numpy.linspace(0, 2*numpy.pi, 400)
-            x = 200 + 200*numpy.cos(s)
-            y = 200 + 200*numpy.sin(s)
-            init = numpy.array([x, y]).T
+                npts = 10
 
-            init = []
-            ms = self._maskspec[0]
-            ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
-            for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
-                xs = numpy.linspace(p1[0], p2[0], 10)[:-1]
-                ys = numpy.linspace(p1[1], p2[1], 10)[:-1]
-                init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis]], 1))
+                init = []
+                ms = self._maskspec[0]
+                ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
+                for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
+                    xs = numpy.linspace(p1[0], p2[0], npts)[:-1]
+                    ys = numpy.linspace(p1[1], p2[1], npts)[:-1]
+                    zs = numpy.linspace(p1[2], p2[2], npts)[:-1]
+                    init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], zs[:, numpy.newaxis]], 1))
 
-            init = numpy.concatenate(init, 0)
+                init = numpy.concatenate(init, 0)
 
-            snake=skimage.segmentation.active_contour(contour_image, init, w_line=1, w_edge=0, bc='periodic', max_iterations=20000, convergence=0.5)
+                #CircularSnakeOptimizer(init, contour_image)
 
-            plt.imshow(contour_image)
-            plt.plot(ms[:, 0], ms[:, 1], '--g', lw=3)
-            plt.plot(init[:, 0], init[:, 1], '--r', lw=3)
-            plt.plot(snake[:, 0], snake[:, 1], '-+b', lw=3)
-            plt.show()
+                #Random walk
+                simul_move = 3
+                current_snake = init.copy()
+                old_snake_score = 0
+
+                #for i in range(npts*init.shape[0]*10):
+                while True:
+                    current_snake_cycled = numpy.concatenate([current_snake, current_snake[0:1, ...]], 0)
+                    current_snake_score = 0
+                    current_snake_dist = 0
+                    x_tot = []
+                    y_tot = []
+                    for p0, p1 in zip(current_snake_cycled[:-1], current_snake_cycled[1:]):
+                        x0, y0, z0 = p0
+                        x1, y1, z1 = p1
+
+                        current_snake_dist += numpy.linalg.norm(p1[:2]-p0[:2])
+
+                        length = int(numpy.hypot(x1-x0, y1-y0))
+                        x, y = numpy.linspace(x0, x1, length), numpy.linspace(y0, y1, length)
+                        x_tot.append(x)
+                        y_tot.append(y)
+
+                    x_tot = numpy.concatenate(x_tot).astype(numpy.int)
+                    y_tot = numpy.concatenate(y_tot).astype(numpy.int)
+                    dup_check = list(set([tuple(x) for x in numpy.array([x_tot, y_tot]).T]))
+                    x_tot = [x[0] for x in dup_check]
+                    y_tot = [x[1] for x in dup_check]
+                    path_pixels = contour_image[y_tot, x_tot]
+                    if numpy.any(path_pixels<=0):
+                        #Invalid pixels?
+                        current_snake_score = 0
+                    else:
+                        current_snake_score += path_pixels.sum()
+                        current_snake_score /= (current_snake_dist ** 1.5)
+                    # if current_snake_score > 0:
+                        # #Remove score depending on the angles
+                        # for p0, p1, p2 in zip(current_snake_cycled[:-2], current_snake_cycled[1:-1], current_snake_cycled[2:]):
+                            # ba = p1[:2] - p0[:2]
+                            # bc = p1[:2] - p2[:2]
+
+                            # cosine_angle = numpy.dot(ba, bc) / (numpy.linalg.norm(ba) * numpy.linalg.norm(bc))
+                            # angle = numpy.degrees(numpy.arccos(cosine_angle)) / 180
+                            # current_snake_score -= angle
+
+                    if current_snake_score < old_snake_score:
+                        current_snake = old_snake.copy()
+                        current_snake_score = old_snake_score
+
+                    assert current_snake_score > 0
+
+                    old_snake = current_snake.copy()
+                    old_snake_score = current_snake_score
+
+                    initial_position = numpy.random.randint(0, current_snake.shape[0])
+                    for p_id in range(simul_move):
+                        p_idx = (p_id + initial_position) % current_snake.shape[0]
+                        new_pos = numpy.array([-1, -1])
+                        while numpy.any(new_pos <0) or numpy.any(new_pos>numpy.array([contour_image.shape[1], contour_image.shape[0]])) or contour_image[new_pos[1], new_pos[0]] <= 0:
+                            new_pos = numpy.random.normal(current_snake[p_idx, :2], current_snake[p_idx, 2]/3).astype(numpy.int)
+                        current_snake[p_idx, :2] = new_pos
+
+
+                    print(current_snake_score)
+
+                plt.imshow(contour_image)
+                plt.plot(ms[:, 0], ms[:, 1], '--g', lw=3)
+                plt.plot(init[:, 0], init[:, 1], '--r', lw=3)
+                plt.plot(current_snake[:, 0], current_snake[:, 1], '-+b', lw=3)
+                plt.show()
+
+            if ms[0][2] > 0:
+                global_mask = numpy.logical_or(global_mask, ms_mask)
+            else:
+                global_mask = numpy.logical_and(global_mask, ~ms_mask)
 
 
 
-        self._mask_cache = ms_mask
-        return ms_mask
+        self._mask_cache = global_mask
+        return global_mask
 
     def mpl_on_motion(self, event):
         if event.inaxes is None:
@@ -370,12 +459,24 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
 
 
     def mpl_on_press(self, event):
+        if event.button == 1:
+            if len(self._maskspec) == 0:
+                self._maskspec.append(numpy.empty((0, 3)))
+
+            self._maskspec[0] = numpy.concatenate([self._maskspec[0], numpy.array([[self._cursor.center[0], self._cursor.center[1], self._cursor.radius]])], 0)
+
+            self._clear_mask_cache()
+
+    def mpl_on_key_press(self, event):
         import IPython
         IPython.embed()
-        pass
+
 
     def mpl_on_release(self, event):
         pass
+
+    def get_maskspec_arg(self):
+        return [','.join(str(x) for x in m.flatten()) for m in self._maskspec]
 
 class AutomaskGUI:
     def __init__(self, automask_algorithm):
@@ -402,6 +503,8 @@ class AutomaskGUI:
         fig.canvas.mpl_connect('button_release_event', self._mpl_on_release)
         fig.canvas.mpl_connect('motion_notify_event', self._mpl_on_motion)
         fig.canvas.mpl_connect('scroll_event', self._mpl_on_scroll)
+        fig.canvas.mpl_connect('key_press_event', self._mpl_on_key_press)
+        fig.canvas.mpl_connect('key_release_event', self._mpl_on_key_release)
 
         self._mpl_fig = fig
         self._mpl_update_plot()
@@ -434,6 +537,14 @@ class AutomaskGUI:
 
     def _mpl_on_scroll(self, event):
         if self._automask_algorithm.mpl_on_scroll(event):
+            self._mpl_update_plot()
+
+    def _mpl_on_key_press(self, event):
+        if self._automask_algorithm.mpl_on_key_press(event):
+            self._mpl_update_plot()
+
+    def _mpl_on_key_release(self, event):
+        if self._automask_algorithm.mpl_on_key_release(event):
             self._mpl_update_plot()
 
 
