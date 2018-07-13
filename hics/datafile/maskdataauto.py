@@ -380,7 +380,71 @@ class CircularSnakeOptimizer:
                 score = new_score
                 fitness = new_fitness
 
+class CircularAntSystemOptimizer:
+    _distance_exponent = 1.1
+    _pixel_exponent = 1.5
 
+    _candidate_positions_delta = numpy.array([
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [-1, 1],
+        [-1, 0],
+        [-1, -1],
+        [0, -1],
+        [1, -1],
+    ])
+
+    def __init__(self, ref_positions, image):
+        self._ref_positions = ref_positions.copy()
+        ref_positions_c = numpy.concatenate([self._ref_positions, self._ref_positions[0:1, ...]], 0)
+        self._ref_positions_middles = (ref_positions_c[:-1] + ref_positions_c[1:]) / 2
+        self._image = image
+        self._pheromone = numpy.zeros_like(self._image)
+        #y,x
+        self._valid_pixels = numpy.array(numpy.nonzero(self._image)).T
+
+        init = []
+        ref_positions_cycled = numpy.concatenate([ref_positions, ref_positions[0:1, :]], 0)
+        for p1, p2 in zip(ref_positions_cycled[:-1], ref_positions_cycled[1:]):
+            xs = numpy.linspace(p1[0], p2[0], 20)[:-1]
+            ys = numpy.linspace(p1[1], p2[1], 20)[:-1]
+            z1s = numpy.ones_like(xs) * (p2[1] - p1[1])
+            z2s = numpy.ones_like(xs) * (p2[0] - p1[0])
+            init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], z1s[:, numpy.newaxis], z2s[:, numpy.newaxis]], 1))
+
+        init = numpy.concatenate(init, 0)
+
+        self._preferred_direction = numpy.zeros(self._image.shape+(8, )) * numpy.nan
+        cpd_norm = self._candidate_positions_delta / numpy.linalg.norm(self._candidate_positions_delta, axis=1)[:, numpy.newaxis]
+        for px in self._valid_pixels:
+            deltas = init[:,1:None:-1]-px
+            nearest = init[numpy.argmin(numpy.linalg.norm(deltas, axis=1))][2:]
+            nearest_norm =  nearest / numpy.linalg.norm(nearest)
+
+
+            self._preferred_direction[px[0], px[1]] = cpd_norm.dot(nearest_norm)
+
+        print(cpd_norm)
+
+    def optimize(self, n_ants, path_length):
+        ants_positions = numpy.zeros((n_ants, path_length, 2))
+        ants_positions[:, 0, :] = self._valid_pixels[numpy.random.choice(self._valid_pixels.shape[0],n_ants)]
+
+
+
+        for step_id in range(1, path_length):
+            for ant_positions in ants_positions:
+                current_position = ant_positions[step_id]
+                candidate_positions = current_position + candidate_positions_delta
+                scores = 1 + (candidate_positions_delta/numpy.linalg.norm(candidate_positions_delta)).dot(self._preferred_direction[current_position[0],current_position[1]]) / 2
+                break
+                #candidate_positions =
+
+
+        import IPython
+        IPython.embed()
+        ants_positions = self._image
 
 
 
@@ -471,7 +535,9 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
             else:
                 global_mask = numpy.logical_and(global_mask, ~ms_mask)
 
-
+        contour_image = global_mask*self._gradient_magnitude
+        contour_image /= contour_image.max()
+        self.caso = CircularAntSystemOptimizer(self._maskspec[0], contour_image)
 
         self._mask_cache = global_mask
         return global_mask
@@ -507,8 +573,10 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
         contour_image /= contour_image.max()
 
         if getattr(self, 'cso', None) is None:
-            self.cso = CircularSnakeOptimizer(self._maskspec[0], contour_image)
-        self.cso.optimize(4000, 3, 0.2)
+            #self.cso = CircularSnakeOptimizer(self._maskspec[0], contour_image)
+            self.caso = CircularAntSystemOptimizer(self._maskspec[0], contour_image)
+        #self.cso.optimize(4000, 3, 0.2)
+        self.caso.optimize(n_ants=1000, path_length=100)
 
         if True:
             self._cso_orig.set_data(self.cso._snake_init[:, 0], self.cso._snake_init[:, 1])
