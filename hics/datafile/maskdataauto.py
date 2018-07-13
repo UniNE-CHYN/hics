@@ -258,9 +258,22 @@ class CircularSnakeOptimizer:
     _distance_exponent = 1.1
     _pixel_exponent = 1.5
 
-    def __init__(self, snake, image):
-        self._snake_init = snake.copy()
-        self._snake = snake.copy()
+    def __init__(self, snake, image, snake_interpolate=10):
+
+        init = []
+        ms = snake
+        ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
+        for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
+            xs = numpy.linspace(p1[0], p2[0], snake_interpolate)[:-1]
+            ys = numpy.linspace(p1[1], p2[1], snake_interpolate)[:-1]
+            zs = numpy.linspace(p1[2], p2[2], snake_interpolate)[:-1]
+            init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], zs[:, numpy.newaxis]], 1))
+
+        init = numpy.concatenate(init, 0)
+
+
+        self._snake_init = init.copy()
+        self._snake = init.copy()
         self._image = image
 
     @property
@@ -493,21 +506,8 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
         contour_image = self.get_mask()*self._gradient_magnitude
         contour_image /= contour_image.max()
 
-        npts = 10
-
-        init = []
-        ms = self._maskspec[0]
-        ms_cycled = numpy.concatenate([ms, ms[0:1, :]], 0)
-        for p1, p2 in zip(ms_cycled[:-1], ms_cycled[1:]):
-            xs = numpy.linspace(p1[0], p2[0], npts)[:-1]
-            ys = numpy.linspace(p1[1], p2[1], npts)[:-1]
-            zs = numpy.linspace(p1[2], p2[2], npts)[:-1]
-            init.append(numpy.concatenate([xs[:, numpy.newaxis], ys[:, numpy.newaxis], zs[:, numpy.newaxis]], 1))
-
-        init = numpy.concatenate(init, 0)
-
         if getattr(self, 'cso', None) is None:
-            self.cso = CircularSnakeOptimizer(init, contour_image)
+            self.cso = CircularSnakeOptimizer(self._maskspec[0], contour_image)
         self.cso.optimize(4000, 3, 0.2)
 
         if True:
