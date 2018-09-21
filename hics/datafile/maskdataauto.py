@@ -395,6 +395,8 @@ class CircularAntSystemOptimizer:
         [1, -1],
     ])
 
+    _preferred_direction_factor = 0.00
+
     def __init__(self, ref_positions, image):
         self._ref_positions = ref_positions.copy()
         ref_positions_c = numpy.concatenate([self._ref_positions, self._ref_positions[0:1, ...]], 0)
@@ -425,27 +427,58 @@ class CircularAntSystemOptimizer:
 
             self._preferred_direction[px[0], px[1]] = cpd_norm.dot(nearest_norm)
 
+        self.optimize(200, 100)
         print(cpd_norm)
 
     def optimize(self, n_ants, path_length):
-        ants_positions = numpy.zeros((n_ants, path_length, 2))
+        ants_positions = numpy.zeros((n_ants, path_length, 2), dtype=numpy.int)
         ants_positions[:, 0, :] = self._valid_pixels[numpy.random.choice(self._valid_pixels.shape[0],n_ants)]
 
 
 
         for step_id in range(1, path_length):
             for ant_positions in ants_positions:
-                current_position = ant_positions[step_id]
-                candidate_positions = current_position + candidate_positions_delta
-                scores = 1 + (candidate_positions_delta/numpy.linalg.norm(candidate_positions_delta)).dot(self._preferred_direction[current_position[0],current_position[1]]) / 2
-                break
-                #candidate_positions =
+                current_position = ant_positions[step_id-1]
+                candidate_positions = current_position + self._candidate_positions_delta
+                scores = self._preferred_direction_factor * self._preferred_direction[current_position[0], current_position[1]]
+                #Better way?
+                invalid = numpy.zeros(len(self._candidate_positions_delta), dtype=numpy.bool)
+                for cpi, candidate_position in enumerate(candidate_positions):
+                    if not all(candidate_position < self._pheromone.shape) or not all(candidate_position>0):
+                        invalid[cpi] = True
+                    elif self._image[candidate_position[0], candidate_position[1]] == 0:
+                        #Border => all invalid!!!
+                        invalid[:] = True
+                    elif candidate_position in ant_positions[:step_id-1]:
+                        invalid[cpi] = True
+                    else:
+                        scores[cpi] += self._pheromone[candidate_position[0], candidate_position[1]]
 
+                scores -= scores.min()
+                scores[invalid] = 0
+                if numpy.all(invalid):
+                    ant_positions[step_id] = current_position
+                else:
+                    if scores.sum() == 0:
+                        scores[:] = 1
+                    scores /= scores.sum()
+                    assert not numpy.any(numpy.isnan(scores))
+                    ant_positions[step_id] = candidate_positions[numpy.random.choice(numpy.arange(8), p=scores)]
 
-        import IPython
-        IPython.embed()
-        ants_positions = self._image
+        new_pheromone = numpy.zeros_like(self._pheromone)
+        for ant_id in range(n_ants):
+            idxs = numpy.ravel_multi_index(ants_positions[ant_id].T, self._image.shape)
+            score = self._image.ravel()[idxs].sum() / len(set(idxs))
+            #FIXME: should not happen
+            if not numpy.isnan(score) and len(set(idxs)) > 5:
+                new_pheromone.ravel()[idxs] += score
 
+        new_pheromone /= new_pheromone.max()
+
+        self._pheromone = 0.6 * self._pheromone + new_pheromone
+        plt.imshow(self._pheromone)
+        plt.draw()
+        #plt.plot(ant_positions)
 
 
 class TopoMaskAlgorithm(AutoMaskAlgorithm):
@@ -572,7 +605,7 @@ class TopoMaskAlgorithm(AutoMaskAlgorithm):
         contour_image = self.get_mask()*self._gradient_magnitude
         contour_image /= contour_image.max()
 
-        if getattr(self, 'cso', None) is None:
+        if getattr(self, 'caso', None) is None:
             #self.cso = CircularSnakeOptimizer(self._maskspec[0], contour_image)
             self.caso = CircularAntSystemOptimizer(self._maskspec[0], contour_image)
         #self.cso.optimize(4000, 3, 0.2)
