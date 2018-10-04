@@ -12,7 +12,7 @@ def convert_sample(input_dir, output_dir):
 
     print(input_dir)
     data = [[x for x in l.split(':', 1)] for l in open(os.path.join(input_dir, 'description.txt')).read().strip().split('\n')]
-    out_desc = open(os.path.join(output_dir, 'description.txt'), 'w')
+    out_desc = open(os.path.join(output_dir, sample_id+'-'+'description.txt'), 'w')
     for k, v in data:
         out_desc.write('{}: {}\r\n'.format(k.lower(), v))
     out_desc.close()
@@ -28,10 +28,13 @@ def convert_sample(input_dir, output_dir):
                 print("Missing file: ", os.path.join(input_dir, f))
                 continue
             if not f.endswith('.scan') and not f.endswith('.hdr') and not f.endswith('.mhdr'):
-                shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, f))
+                if f.startswith('{}-'.format(scan_id)):
+                    shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, sample_id+'-'+f))
+                else:
+                    shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, f))
             else:
                 infile = mmapdict(os.path.join(input_dir, f), True)
-                outfile = h5py.File(os.path.join(output_dir, f+'.h5'), 'w')
+                outfile = h5py.File(os.path.join(output_dir, sample_id+'-'+f+'.h5'), 'w')
 
                 wavelengths = numpy.array(infile['wavelengths'])
                 outfile.create_dataset("wavelengths", wavelengths.shape, dtype=wavelengths.dtype)
@@ -47,7 +50,7 @@ def convert_sample(input_dir, output_dir):
 
 
                 for k in infile.keys():
-                    if not re.match('^(scan|white)-([0-9]+)(-var|-d0|-d1|-d0-var|-d1-var)?$', k) and not k in ('hdr', 'hdr-var'):
+                    if not re.match('^(scan|white)-([0-9]+)(-d0|-d1)?$', k) and not k in ('hdr', ):
                         continue
                     if hasattr(infile[k], 'mask'):
                         data = infile[k].filled(numpy.nan)
@@ -56,7 +59,10 @@ def convert_sample(input_dir, output_dir):
 
                     data = numpy.transpose(data, (2, 0, 1))
 
-                    outfile.create_dataset(k, data.shape, dtype=numpy.float32)
+                    if f.endswith('.scan'):
+                        outfile.create_dataset(k, data.shape, dtype=numpy.uint16)
+                    else:
+                        outfile.create_dataset(k, data.shape, dtype=numpy.float32)
                     outfile[k][...] = data[...]
 
 def write_envi_template(fn):
@@ -87,7 +93,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not os.path.exists(os.path.join(args.input, 'description.txt')):
-        samples = [(os.path.join(args.input, d), os.path.join(args.output, d)) for d in os.listdir(args.input) if os.path.exists(os.path.join(args.input, d, 'description.txt'))]
+        samples = [(os.path.join(args.input, d), args.output) for d in os.listdir(args.input) if os.path.exists(os.path.join(args.input, d, 'description.txt'))]
     else:
         samples = [(args.input, args.output)]
 
