@@ -12,7 +12,7 @@ def convert_sample(input_dir, output_dir):
 
     print(input_dir)
     data = [[x for x in l.split(':', 1)] for l in open(os.path.join(input_dir, 'description.txt')).read().strip().split('\n')]
-    out_desc = open(os.path.join(output_dir, sample_id+'-'+'description.txt'), 'w')
+    out_desc = open(os.path.join(output_dir, 'description.txt'), 'w')
     for k, v in data:
         out_desc.write('{}: {}\r\n'.format(k.lower(), v))
     out_desc.close()
@@ -28,13 +28,10 @@ def convert_sample(input_dir, output_dir):
                 print("Missing file: ", os.path.join(input_dir, f))
                 continue
             if not f.endswith('.scan') and not f.endswith('.hdr') and not f.endswith('.mhdr'):
-                if f.startswith('{}-'.format(scan_id)):
-                    shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, sample_id+'-'+f))
-                else:
-                    shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, f))
+                shutil.copyfile(os.path.join(input_dir, f), os.path.join(output_dir, f))
             else:
                 infile = mmapdict(os.path.join(input_dir, f), True)
-                outfile = h5py.File(os.path.join(output_dir, sample_id+'-'+f+'.h5'), 'w')
+                outfile = h5py.File(os.path.join(output_dir, f+'.h5'), 'w')
 
                 wavelengths = numpy.array(infile['wavelengths'])
                 outfile.create_dataset("wavelengths", wavelengths.shape, dtype=wavelengths.dtype)
@@ -93,7 +90,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not os.path.exists(os.path.join(args.input, 'description.txt')):
-        samples = [(os.path.join(args.input, d), args.output) for d in os.listdir(args.input) if os.path.exists(os.path.join(args.input, d, 'description.txt'))]
+        samples = [(os.path.join(args.input, d), os.path.join(args.output, d)) for d in os.listdir(args.input) if os.path.exists(os.path.join(args.input, d, 'description.txt'))]
     else:
         samples = [(args.input, args.output)]
 
@@ -104,3 +101,9 @@ if __name__ == '__main__':
 
     for input_dir, output_dir in samples:
         convert_sample(input_dir, output_dir)
+
+#mkdir scan hdr mhdr
+#for i in 0* Bg; do zip scan/$i.zip `ls $i/*|grep -v \\\\.mhdr\\\\.|grep -v \\\\.hdr\\\\.`; done
+#for i in 0* Bg; do zip hdr/$i.zip `ls $i/*|grep -v \\\\.mhdr\\\\.|grep -v \\\\.scan\\\\.`; done
+#for i in 0* Bg; do zip mhdr/$i.zip `ls $i/*|grep -v \\\\.hdr\\\\.|grep -v \\\\.scan\\\\.`; done
+
