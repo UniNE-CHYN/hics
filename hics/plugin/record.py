@@ -39,8 +39,8 @@ class Record(BaseImperativePlugin):
         'Data storage directory',
         'Integration times',
         'Focus positions', 
-        'Dark frame time',
-        'White frame time',
+        'Dark frame duration',
+        'White frame duration',
         'Scan times', 
         'Scan description'
     ]
