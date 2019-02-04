@@ -1,0 +1,12 @@
+[Unit]
+Description=Hyperspectral Imaging Control System: EV3 rotater
+
+[Service]
+User=root
+Environment=PYTHONPATH=/root/hics
+ExecStart=/usr/bin/python3 -m hics.hardware.ev3.ev3rotater --redis redis://192.168.1.2
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
