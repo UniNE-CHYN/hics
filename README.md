@@ -23,7 +23,7 @@ pip3 install -e .
 
 ## Usage
 
-A [short manual](../blob/master/softwaremanual.pdf) is provided.
+A [short manual](https://github.com/UniNE-CHYN/hics/blob/master/softwaremanual.pdf) is provided.
 
 ## Licence
 
